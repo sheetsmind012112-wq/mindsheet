@@ -5,6 +5,21 @@ import Footer from '@/components/Footer'
 export const metadata: Metadata = {
   title: 'Terms of Service — SheetMind',
   description: 'SheetMind terms of service. Read our terms before using the product.',
+  alternates: {
+    canonical: '/terms',
+  },
+  robots: {
+    index: false,
+  },
+  openGraph: {
+    title: 'Terms of Service — SheetMind',
+    description: 'SheetMind terms of service. Read our terms before using the product.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Terms of Service — SheetMind',
+    description: 'SheetMind terms of service. Read our terms before using the product.',
+  },
 }
 
 export default function TermsPage() {
@@ -79,7 +94,7 @@ export default function TermsPage() {
             <h2>11. Contact</h2>
             <p>
               If you have questions about these terms, please contact us at{' '}
-              <a href="mailto:legal@sheetmind.com">legal@sheetmind.com</a>.
+              <a href="mailto:legal@sheetmind.xyz">legal@sheetmind.xyz</a>.
             </p>
           </div>
         </div>

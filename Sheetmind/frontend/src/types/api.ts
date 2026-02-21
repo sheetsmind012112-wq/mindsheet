@@ -136,6 +136,19 @@ export interface RAGSearchResponse {
   count: number;
 }
 
+// Clarification card types (clickable options for AI questions)
+export interface ClarificationOption {
+  label: string;
+  value: string;
+  description: string;
+}
+
+export interface Clarification {
+  question: string;
+  type: "column" | "sheet" | "range" | "custom";
+  options: ClarificationOption[];
+}
+
 export interface ClearMemoryRequest {
   conversation_id?: string;
 }
@@ -186,6 +199,8 @@ export interface ChatResponse {
   sheet_metadata?: SheetMetadata | null;
   // PII warning
   pii_warning?: string | null;
+  // Clarification cards
+  clarification?: Clarification | null;
 }
 
 export interface UndoInfo {
@@ -215,6 +230,9 @@ export interface Message {
   undone?: boolean;
   // PII warning
   pii_warning?: string;
+  // Clarification cards
+  clarification?: Clarification;
+  clarificationAnswered?: boolean;
 }
 
 export interface ConversationListResponse {

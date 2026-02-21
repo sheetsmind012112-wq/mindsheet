@@ -6,6 +6,18 @@ import ScrollReveal from '@/components/ScrollReveal'
 export const metadata: Metadata = {
   title: 'About — SheetMind | Our Mission',
   description: 'SheetMind is the AI sidebar for Google Sheets built for trust, safety, and real utility. Learn our story.',
+  alternates: {
+    canonical: '/about',
+  },
+  openGraph: {
+    title: 'About — SheetMind | Our Mission',
+    description: 'SheetMind is the AI sidebar for Google Sheets built for trust, safety, and real utility. Learn our story.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'About — SheetMind | Our Mission',
+    description: 'SheetMind is the AI sidebar for Google Sheets built for trust, safety, and real utility. Learn our story.',
+  },
 }
 
 const values = [

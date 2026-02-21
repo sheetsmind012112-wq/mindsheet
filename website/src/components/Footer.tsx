@@ -69,6 +69,9 @@ export default function Footer() {
                 <a
                   key={social}
                   href="#"
+                  aria-label={`Follow us on ${social.charAt(0).toUpperCase() + social.slice(1)}`}
+                  rel="noopener noreferrer"
+                  target="_blank"
                   className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 flex items-center justify-center transition-colors"
                 >
                   {social === 'twitter' && (

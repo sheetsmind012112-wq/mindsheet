@@ -10,8 +10,70 @@ import Templates from '@/components/Templates'
 import Testimonials from '@/components/Testimonials'
 import Pricing from '@/components/Pricing'
 import FAQ from '@/components/FAQ'
+import { faqs } from '@/lib/faq-data'
 import CTA from '@/components/CTA'
 import Footer from '@/components/Footer'
+import JsonLd from '@/components/JsonLd'
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'SheetMind',
+  url: 'https://sheetmind.xyz',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: 'https://sheetmind.xyz/blog?q={search_term_string}',
+    'query-input': 'required name=search_term_string',
+  },
+}
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'SheetMind',
+  description:
+    'AI sidebar for Google Sheets that reads your data, takes action, and lets you undo every step. Validated formulas, PII detection, and step-by-step undo.',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  offers: [
+    {
+      '@type': 'Offer',
+      name: 'Free',
+      price: '0',
+      priceCurrency: 'USD',
+      description: '5 messages per month',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Pro',
+      price: '9',
+      priceCurrency: 'USD',
+      billingIncrement: 'P1M',
+      description: '1,000 messages per month',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Team',
+      price: '29',
+      priceCurrency: 'USD',
+      billingIncrement: 'P1M',
+      description: 'Unlimited messages',
+    },
+  ],
+}
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.q,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.a,
+    },
+  })),
+}
 
 function ProblemSolution() {
   return (
@@ -38,6 +100,9 @@ function ProblemSolution() {
 export default function Home() {
   return (
     <main className="min-h-screen">
+      <JsonLd data={websiteSchema} />
+      <JsonLd data={softwareSchema} />
+      <JsonLd data={faqSchema} />
       <Navbar />
       <Hero />
       <TrustBar />

@@ -85,6 +85,20 @@ class AgentReasoningStep(BaseModel):
     result: str
 
 
+class ClarificationOption(BaseModel):
+    """A single clickable option for clarification."""
+    label: str          # e.g. "A: Name"
+    value: str          # sent as message on click, e.g. "Column A (Name)"
+    description: str    # e.g. "text, 30 rows"
+
+
+class Clarification(BaseModel):
+    """Clickable clarification cards sent with an AI question."""
+    question: str       # The AI's question text
+    type: str           # "column" | "sheet" | "range" | "custom"
+    options: list[ClarificationOption]
+
+
 class ClearMemoryRequest(BaseModel):
     """Request to clear agent memory."""
     conversation_id: str | None = None
@@ -199,6 +213,8 @@ class ChatResponse(BaseModel):
     sheet_metadata: SheetMetadata | None = None
     # PII detection warning
     pii_warning: str | None = None
+    # Clarification cards (clickable options)
+    clarification: Clarification | None = None
 
 
 class MessageResponse(BaseModel):

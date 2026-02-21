@@ -82,7 +82,7 @@ function ChartDisplay({ config }: ChartDisplayProps) {
   }, [config]);
 
   return (
-    <div className="mt-2 p-2 bg-white rounded border border-gray-100">
+    <div className="mt-2 p-2 bg-white rounded border border-slate-100">
       <canvas ref={canvasRef} />
     </div>
   );

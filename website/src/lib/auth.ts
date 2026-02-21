@@ -2,10 +2,32 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
 
 // ── Token storage ──────────────────────────────────────────────
 
+export interface UserData {
+  name?: string
+  email?: string
+  avatar_url?: string
+  tier?: string
+}
+
 export function storeTokens(access: string, refresh: string, expiresAt?: number) {
   localStorage.setItem('sheetmind_access_token', access)
   localStorage.setItem('sheetmind_refresh_token', refresh)
   if (expiresAt) localStorage.setItem('sheetmind_expires_at', String(expiresAt))
+}
+
+export function storeUser(user: Record<string, unknown>) {
+  localStorage.setItem('sheetmind_user', JSON.stringify({
+    name: user.name || user.full_name || '',
+    email: user.email || '',
+    avatar_url: user.avatar_url || user.picture || '',
+    tier: user.tier || 'free',
+  }))
+}
+
+export function getUser(): UserData | null {
+  const raw = localStorage.getItem('sheetmind_user')
+  if (!raw) return null
+  try { return JSON.parse(raw) } catch { return null }
 }
 
 export function getTokens() {
@@ -16,10 +38,15 @@ export function getTokens() {
   }
 }
 
+export function isLoggedIn(): boolean {
+  return !!localStorage.getItem('sheetmind_access_token')
+}
+
 export function clearTokens() {
   localStorage.removeItem('sheetmind_access_token')
   localStorage.removeItem('sheetmind_refresh_token')
   localStorage.removeItem('sheetmind_expires_at')
+  localStorage.removeItem('sheetmind_user')
 }
 
 // ── Email / password auth ──────────────────────────────────────

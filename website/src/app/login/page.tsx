@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import ScrollReveal from '@/components/ScrollReveal'
-import { signIn, openOAuthPopup, exchangeOAuthTokens, storeTokens } from '@/lib/auth'
+import { signIn, openOAuthPopup, exchangeOAuthTokens, storeTokens, storeUser } from '@/lib/auth'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -29,6 +29,7 @@ export default function LoginPage() {
     try {
       const data = await signIn(email, password)
       storeTokens(data.access_token, data.refresh_token, data.expires_at)
+      storeUser(data.user)
       setSuccess('Logged in! Redirecting...')
       setTimeout(() => { window.location.href = '/' }, 1000)
     } catch (err) {
@@ -46,6 +47,7 @@ export default function LoginPage() {
       const tokens = await openOAuthPopup()
       const data = await exchangeOAuthTokens(tokens.access_token, tokens.refresh_token)
       storeTokens(data.access_token, data.refresh_token, data.expires_at)
+      storeUser(data.user)
       setSuccess('Logged in! Redirecting...')
       setTimeout(() => { window.location.href = '/' }, 1000)
     } catch (err) {

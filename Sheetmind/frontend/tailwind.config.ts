@@ -8,9 +8,6 @@ const config: Config = {
         emerald: {
           600: "#059669",
         },
-        teal: {
-          600: "#0d9488",
-        },
         confidence: {
           high: "#059669",
           medium: "#d97706",
@@ -18,7 +15,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["DM Sans", "system-ui", "sans-serif"],
+        display: ["Sora", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       width: {

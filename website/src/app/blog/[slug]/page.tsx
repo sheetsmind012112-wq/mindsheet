@@ -5,6 +5,8 @@ import { getAllSlugs, getPostBySlug } from '@/lib/blog'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import ScrollReveal from '@/components/ScrollReveal'
+import JsonLd from '@/components/JsonLd'
+import Breadcrumbs from '@/components/Breadcrumbs'
 
 interface Props {
   params: { slug: string }
@@ -21,7 +23,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${post.title} — SheetMind Blog`,
     description: post.description,
-    openGraph: { title: post.title, description: post.description },
+    alternates: {
+      canonical: `/blog/${params.slug}`,
+    },
+    openGraph: {
+      title: post.title,
+      description: post.description,
+      type: 'article',
+      publishedTime: post.date,
+      authors: [post.author],
+    },
+    twitter: {
+      card: 'summary',
+      title: post.title,
+      description: post.description,
+    },
   }
 }
 
@@ -29,21 +45,73 @@ export default async function BlogPostPage({ params }: Props) {
   const post = await getPostBySlug(params.slug)
   if (!post) notFound()
 
+  const articleSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.description,
+    datePublished: post.date,
+    author: {
+      '@type': 'Person',
+      name: post.author,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'SheetMind',
+      url: 'https://sheetmind.xyz',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://sheetmind.xyz/logo.png',
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `https://sheetmind.xyz/blog/${params.slug}`,
+    },
+  }
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: 'https://sheetmind.xyz',
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Blog',
+        item: 'https://sheetmind.xyz/blog',
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: post.title,
+        item: `https://sheetmind.xyz/blog/${params.slug}`,
+      },
+    ],
+  }
+
   return (
     <main className="min-h-screen">
+      <JsonLd data={articleSchema} />
+      <JsonLd data={breadcrumbSchema} />
       <Navbar />
 
       <article className="pt-28 lg:pt-36 pb-24 lg:pb-32">
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
           <ScrollReveal>
-            {/* Back link */}
-            <Link
-              href="/blog"
-              className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-emerald-600 transition-colors mb-8"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-              Back to Blog
-            </Link>
+            {/* Breadcrumbs */}
+            <Breadcrumbs
+              items={[
+                { label: 'Home', href: '/' },
+                { label: 'Blog', href: '/blog' },
+                { label: post.title },
+              ]}
+            />
 
             {/* Category + read time */}
             <div className="flex items-center gap-3 mb-4">

@@ -9,6 +9,15 @@ export const metadata: Metadata = {
   title: 'Blog — SheetMind | AI for Google Sheets Insights',
   description:
     'Tips, guides, and insights on using AI in Google Sheets. Learn about formula automation, data analysis, and spreadsheet best practices.',
+  alternates: {
+    canonical: '/blog',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Blog — SheetMind | AI for Google Sheets Insights',
+    description:
+      'Tips, guides, and insights on using AI in Google Sheets. Learn about formula automation, data analysis, and spreadsheet best practices.',
+  },
 }
 
 const categoryColors: Record<string, string> = {

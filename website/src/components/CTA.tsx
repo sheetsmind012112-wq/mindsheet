@@ -29,7 +29,9 @@ export default function CTA() {
 
           {/* Email input + CTA */}
           <div className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto mb-6">
+            <label htmlFor="cta-email" className="sr-only">Email address</label>
             <input
+              id="cta-email"
               type="email"
               placeholder="Enter your email to get started..."
               className="w-full sm:flex-1 px-5 py-3.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-emerald-200/50 backdrop-blur-sm outline-none focus:border-white/40 focus:bg-white/15 transition-all text-sm"

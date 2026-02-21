@@ -100,7 +100,7 @@ function InputArea({
   const hasQuickActions = quickActions && quickActions.length > 0;
 
   return (
-    <div className="border-t border-gray-100 bg-white">
+    <div className="border-t border-slate-100 bg-white">
       {/* Quick actions */}
       {hasQuickActions && !isLoading && (
         <div className="px-3 pt-2 flex flex-wrap gap-1.5 animate-fade-in">
@@ -108,7 +108,7 @@ function InputArea({
             <button
               key={i}
               onClick={() => onQuickAction?.(qa.prompt)}
-              className="px-2.5 py-1 rounded-lg text-xs bg-gray-50 text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 border border-gray-100 hover:border-emerald-200 active:scale-[0.97] transition-all"
+              className="px-2.5 py-1 rounded-lg text-xs bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-100 hover:border-emerald-200 active:scale-[0.97] transition-all"
             >
               {qa.label}
             </button>
@@ -118,7 +118,7 @@ function InputArea({
 
       {/* Input */}
       <div className="p-3 pb-2">
-        <div className="flex items-end gap-2 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 focus-within:border-emerald-300 focus-within:ring-2 focus-within:ring-emerald-100/50 focus-within:bg-white transition-all">
+        <div className="flex items-end gap-2 bg-slate-50/80 rounded-2xl p-2 border border-slate-100 focus-within:border-emerald-300 focus-within:ring-2 focus-within:ring-emerald-100/50 focus-within:bg-white transition-all">
           <textarea
             ref={textareaRef}
             value={message}
@@ -128,12 +128,12 @@ function InputArea({
             rows={1}
             disabled={isLoading || trialExpired}
             style={{ resize: 'none' }}
-            className="flex-1 bg-transparent px-2 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none disabled:opacity-50 max-h-[120px]"
+            className="flex-1 bg-transparent px-2 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none disabled:opacity-50 max-h-[120px]"
           />
           <button
             onClick={handleSend}
             disabled={!message.trim() || isLoading || trialExpired}
-            className="flex-shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-2.5 text-white hover:from-emerald-700 hover:to-teal-700 hover:shadow-lg hover:shadow-emerald-200/50 disabled:opacity-30 disabled:hover:shadow-none active:scale-[0.93] transition-all"
+            className="flex-shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 p-2.5 text-white hover:from-emerald-700 hover:to-emerald-600 hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-30 disabled:hover:shadow-none active:scale-[0.93] transition-all"
           >
             {isLoading ? (
               <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -152,13 +152,13 @@ function InputArea({
       {/* Controls row */}
       <div className="px-3 pb-2.5 flex items-center gap-2">
         {/* Mode toggle */}
-        <div className="flex gap-0.5 p-0.5 bg-gray-50 rounded-lg border border-gray-100">
+        <div className="flex gap-0.5 p-0.5 bg-slate-50 rounded-lg border border-slate-100">
           <button
             onClick={() => onModeChange("action")}
             className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
               mode === "action"
-                ? "bg-white text-emerald-700 shadow-sm border border-gray-100"
-                : "text-gray-400 hover:text-gray-600"
+                ? "bg-white text-emerald-700 shadow-sm border border-slate-100"
+                : "text-slate-400 hover:text-slate-600"
             }`}
             title="Creates sheets & formulas"
           >
@@ -168,8 +168,8 @@ function InputArea({
             onClick={() => onModeChange("chat")}
             className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
               mode === "chat"
-                ? "bg-white text-teal-600 shadow-sm border border-gray-100"
-                : "text-gray-400 hover:text-gray-600"
+                ? "bg-white text-emerald-600 shadow-sm border border-slate-100"
+                : "text-slate-400 hover:text-slate-600"
             }`}
             title="Answers questions only"
           >
@@ -188,7 +188,7 @@ function InputArea({
             <select
               value={selectedSheet || ""}
               onChange={(e) => onSheetChange(e.target.value)}
-              className="flex-1 text-xs bg-white border border-gray-100 rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-emerald-300 focus:border-emerald-300 min-w-0 font-medium"
+              className="flex-1 text-xs bg-white border border-slate-100 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-300 focus:border-emerald-300 min-w-0 font-medium"
             >
               {sheets.map((sheet) => (
                 <option key={sheet.name} value={sheet.name}>
@@ -197,7 +197,7 @@ function InputArea({
               ))}
             </select>
           ) : (
-            <span className="text-xs text-gray-400 truncate font-medium">
+            <span className="text-xs text-slate-400 truncate font-medium">
               {sheetName || "Loading..."}
             </span>
           )}

@@ -29,6 +29,10 @@ from app.services.langchain_tools import (
 )
 from app.services.rag_system import get_rag
 from app.services.sheet_analyzer import analyze_sheet, format_metadata_for_prompt, SheetMetadata
+from app.services.formula_patterns import get_all_patterns_summary
+from app.services.formula_category_docs import (
+    classify_formula_intent, get_category_docs, get_mini_cheat_sheet
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,33 +72,28 @@ CONVERSATION HISTORY:
 
 IMPORTANT INSTRUCTIONS:
 
-**CRITICAL: Before writing ANY formula, ALWAYS call lookup_formula first!**
-The lookup_formula tool will tell you the correct formula pattern and warn you about common mistakes.
+**CRITICAL: Before writing ANY aggregation formula (SUMIF, COUNTIF, SUMPRODUCT, etc.), call lookup_formula first to get the correct pattern and avoid common mistakes.**
 Example: lookup_formula("sum of price times quantity by region")
 
 **WARNING: NEVER use fillDown=true with UNIQUE formulas! UNIQUE auto-spills and fillDown will cause errors.**
 
 1. USE THE METADATA ABOVE - it already tells you column types, row counts, and statistics
 2. The lastRow value ({last_row}) is PRE-CALCULATED - use it directly, don't guess
-3. When creating grouped summaries (sum by category, count by type, etc.):
-   - Create a new sheet with create_sheet
-   - Add headers with set_values
-   - CRITICAL: Use =UNIQUE('{sheet_name}'!E2:E{last_row}) with the EXACT last row from metadata
-   - CRITICAL: Use =SUMIF('{sheet_name}'!E2:E{last_row}, A2, '{sheet_name}'!G2:G{last_row})
-   - Use the categorical columns ({group_columns}) for GROUP BY operations
-   - Use the numeric columns ({numeric_columns}) for SUM/AVG/COUNT operations
-4. CRITICAL - UNIQUE formulas and fillDown:
-   - UNIQUE formulas AUTOMATICALLY SPILL DOWN - they fill multiple cells on their own
-   - NEVER use fillDown=true with UNIQUE formulas - it will cause "would overwrite data" errors
-   - For the aggregation formula (SUMIF/COUNTIF) in column B:
-     * First set the formula in B2 WITHOUT fillDown
-     * Then use autoFillDown with lastRow = 1 + uniqueCount (e.g., if 5 unique values, lastRow = 6)
-     * Get uniqueCount from the metadata for the column you're grouping by
-5. For charts, calculate endRow = startRow + uniqueCount - 1 (from categorical column metadata)
-   - Example: if uniqueCount=5 and startRow=2, then endRow = 2 + 5 - 1 = 6
-6. Always use the exact sheet name '{sheet_name}' - never hardcode 'Sheet1'
-7. Format headers using format_headers for professional appearance
-8. Understand pronoun references from conversation history
+3. UNIQUE formulas AUTOMATICALLY SPILL DOWN - NEVER use fillDown=true with them
+   - For aggregation formulas (SUMIF/COUNTIF), use autoFillDown with lastRow = 1 + uniqueCount
+4. Always use the exact sheet name '{sheet_name}' - never hardcode 'Sheet1'
+5. Format headers using format_headers for professional appearance
+6. Understand pronoun references from conversation history
+7. SUMIF sum_range CANNOT have arithmetic - use SUMPRODUCT instead
+8. Never use full column refs (A:A) - use A2:A{{last_row}}
+9. UNIQUE/FILTER auto-spill - never use fillDown with them
+
+{mini_cheat_sheet}
+
+DETAILED FORMULA PATTERNS (call lookup_formula for full guidance):
+{formula_patterns_summary}
+
+{category_formula_docs}
 
 RESPONSE FORMAT - You must follow this exact format:
 Question: the input question you must answer
@@ -107,8 +106,8 @@ Thought: I now know the final answer
 Final Answer: the final answer to the original input question
 
 ACTION INPUT EXAMPLES:
-- get_column_stats: "B" (CRITICAL for charts - returns uniqueCount for endRow calculation!)
-- lookup_formula: "sum by category" (ALWAYS call before set_formula!)
+- get_chart_range: "B" (ALWAYS call before create_chart to get startRow/endRow!)
+- lookup_formula: "sum by category" (ALWAYS call before set_formula for aggregations!)
 - get_headers: (no input needed)
 - get_column_values: "A"
 - count_rows: (no input needed)
@@ -119,56 +118,22 @@ ACTION INPUT EXAMPLES:
 - create_chart: {{"type": "bar", "title": "Title", "dataSheet": "Summary", "labelColumn": "A", "valueColumn": "B", "startRow": 2, "endRow": 3}}
 
 GROUPED SUMMARY WITH CHART WORKFLOW:
-Step 1: get_column_stats on the GROUP BY column (e.g., "B" for Gender) - THIS TELLS YOU uniqueCount!
-Step 2: create_sheet("Summary")
-Step 3: set_values for headers
-Step 4: set_formula for UNIQUE (NO fillDown!): {{"sheet": "Summary", "cell": "A2", "formula": "=UNIQUE('{sheet_name}'!B2:B{last_row})"}}
-Step 5: set_formula for SUMIF: {{"sheet": "Summary", "cell": "B2", "formula": "=SUMIF('{sheet_name}'!B2:B{last_row}, A2, '{sheet_name}'!G2:G{last_row})"}}
-Step 6: autoFillDown: {{"sheet": "Summary", "sourceCell": "B2", "lastRow": X}} where X = 1 + uniqueCount
-Step 7: create_chart with endRow = 1 + uniqueCount (e.g., if 2 genders, endRow = 3)
+Step 1: lookup_formula("sum by category") to get the correct formula pattern
+Step 2: get_chart_range on the GROUP BY column (e.g., "B") - returns startRow, endRow, fillDownLastRow
+Step 3: create_sheet("Summary")
+Step 4: set_values for headers
+Step 5: set_formula for UNIQUE (NO fillDown!): {{"sheet": "Summary", "cell": "A2", "formula": "=UNIQUE('{sheet_name}'!B2:B{last_row})"}}
+Step 6: set_formula for SUMIF: {{"sheet": "Summary", "cell": "B2", "formula": "=SUMIF('{sheet_name}'!B2:B{last_row}, A2, '{sheet_name}'!G2:G{last_row})"}}
+Step 7: autoFillDown: {{"sheet": "Summary", "sourceCell": "B2", "lastRow": fillDownLastRow}}
+Step 8: create_chart using startRow and endRow from get_chart_range
 
 CRITICAL FOR CHARTS:
-- ALWAYS call get_column_stats FIRST on the grouping column to get uniqueCount
-- Chart endRow = startRow + uniqueCount - 1 (e.g., 2 genders: endRow = 2 + 2 - 1 = 3)
-- autoFillDown lastRow = 1 + uniqueCount (e.g., 2 genders: lastRow = 3)
-
-WORKFLOW FOR MULTIPLYING COLUMNS AND SUMMING BY CATEGORY:
-Step 0: lookup_formula("multiply columns and sum by category") <-- This will tell you to use SUMPRODUCT!
-Step 1: create_sheet and add headers
-Step 2: set_formula for UNIQUE (NO fillDown!)
-Step 3: set_formula for SUMPRODUCT: {{"sheet": "Summary", "cell": "B2", "formula": "=SUMPRODUCT(('{sheet_name}'!E2:E{last_row}=A2)*('{sheet_name}'!C2:C{last_row}*'{sheet_name}'!G2:G{last_row}))"}}
-Step 4: autoFillDown for SUMPRODUCT
+- ALWAYS call get_chart_range on the grouping column to get startRow and endRow
+- Use the returned values directly in create_chart
+- Use fillDownLastRow for autoFillDown
 
 CHART TYPES: bar, line, pie, doughnut, scatter
 When user asks for a chart/graph/visualization, ALWAYS use create_chart tool after preparing the data.
-
-FORMULA REFERENCE (use exact row ranges from metadata):
-- UNIQUE('{sheet_name}'!E2:E{last_row}) - get unique values from column E
-- SUMIF('{sheet_name}'!E2:E{last_row}, A2, '{sheet_name}'!G2:G{last_row}) - sum values where condition matches
-- COUNTIF('{sheet_name}'!E2:E{last_row}, A2) - count rows where condition matches
-- AVERAGEIF('{sheet_name}'!E2:E{last_row}, A2, '{sheet_name}'!G2:G{last_row}) - average where condition matches
-- VLOOKUP(key, range, col, false) - lookup values
-- FILTER(range, condition) - filter data
-
-CRITICAL FORMULA LIMITATIONS - READ CAREFULLY:
-1. SUMIF/COUNTIF/AVERAGEIF sum_range CANNOT contain arithmetic operations
-   - WRONG: =SUMIF(E2:E31, A2, C2:C31*G2:G31)  <-- INVALID, will error!
-   - The sum_range argument must be a simple range, NOT a calculation
-
-2. For multiplying columns before summing with criteria, use SUMPRODUCT instead:
-   - RIGHT: =SUMPRODUCT(('{sheet_name}'!E2:E{last_row}=A2)*('{sheet_name}'!C2:C{last_row}*'{sheet_name}'!G2:G{last_row}))
-   - This multiplies C*G where E matches the criteria in A2
-
-3. SUMPRODUCT patterns for grouped calculations:
-   - Sum of A*B where C matches: =SUMPRODUCT((C2:C{last_row}=criteria)*(A2:A{last_row}*B2:B{last_row}))
-   - Sum of A where B>10: =SUMPRODUCT((B2:B{last_row}>10)*(A2:A{last_row}))
-   - Count where A=X and B=Y: =SUMPRODUCT((A2:A{last_row}="X")*(B2:B{last_row}="Y"))
-
-4. When user asks for "sum of X*Y by category":
-   - DO NOT use SUMIF with multiplication in sum_range
-   - USE SUMPRODUCT with the category condition
-
-NEVER use entire column references like E:E or A:A - always use E2:E{last_row} format.
 
 Begin!
 
@@ -251,6 +216,7 @@ class SheetMindAgent:
         message: str,
         sheet_data: Optional[Dict] = None,
         sheet_name: Optional[str] = None,
+        history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
         """
         Run the agent with a user message.
@@ -351,9 +317,28 @@ class SheetMindAgent:
                 # Format context without RAG
                 context_str = self._format_basic_context(sheet_data, effective_sheet_name)
 
+        # Pre-populate memory from DB history when agent is fresh/evicted
+        if history and not self.memory.chat_memory.messages:
+            pairs = []
+            for msg in history:
+                if msg["role"] == "user":
+                    pairs.append({"user": msg["content"], "assistant": None})
+                elif msg["role"] == "assistant" and pairs and pairs[-1]["assistant"] is None:
+                    pairs[-1]["assistant"] = msg["content"]
+            for pair in pairs:
+                if pair["assistant"] is not None:
+                    self.add_to_memory(pair["user"], pair["assistant"])
+            if pairs:
+                logger.info(f"Pre-populated memory with {len(pairs)} exchanges from DB history")
+
         try:
             # Run the agent with pre-analyzed metadata
             agent_start = time.time()
+
+            # Classify formula intent for dynamic category docs injection
+            detected_categories = classify_formula_intent(message)
+            category_docs = get_category_docs(detected_categories) if detected_categories else ""
+
             result = self.executor.invoke({
                 "input": message,
                 "sheet_context": context_str,
@@ -362,6 +347,9 @@ class SheetMindAgent:
                 "last_row": str(last_row),
                 "group_columns": group_columns,
                 "numeric_columns": numeric_columns,
+                "formula_patterns_summary": get_all_patterns_summary(),
+                "mini_cheat_sheet": get_mini_cheat_sheet(),
+                "category_formula_docs": category_docs,
             })
             timing["agent_ms"] = int((time.time() - agent_start) * 1000)
 

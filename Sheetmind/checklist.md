@@ -537,7 +537,7 @@
   - [ ] Auto-deploy to staging on merge to `develop`
   - [ ] Manual promote to production on `main`
 - [ ] Configure environment variables in deployment platform
-- [ ] Set up domain + SSL (`api.sheetmind.com`)
+- [ ] Set up domain + SSL (`api.sheetmind.xyz`)
 - [ ] Configure CORS for production domains
 
 ### 9.2 Monitoring & Observability

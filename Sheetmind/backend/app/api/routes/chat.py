@@ -81,7 +81,17 @@ _AGENT_INTENT_PATTERN = re.compile(
     r"\w+\s+wise\b|"
     # Short "verb by X" patterns
     r"sum\s+by\s+|count\s+by\s+|average\s+by\s+|avg\s+by\s+|"
-    r"total\s+by\s+|mean\s+by\s+)\b",
+    r"total\s+by\s+|mean\s+by\s+|"
+    # Top/bottom/sort/rank patterns
+    r"top\s+\d+|bottom\s+\d+|"
+    r"sort\s+(by|the)|sort\s+\w+\s+(asc|desc|ascending|descending)|"
+    r"highest\s+\d+|lowest\s+\d+|"
+    r"rank\s+by|ranking|"
+    r"best\s+\d+|worst\s+\d+|"
+    r"largest\s+\d+|smallest\s+\d+|"
+    r"show\s+(me\s+)?(the\s+)?top\s+|show\s+(me\s+)?(the\s+)?bottom\s+|"
+    r"sort\s+descending|sort\s+ascending|"
+    r"order\s+by|arrange\s+by)\b",
     re.IGNORECASE,
 )
 
@@ -116,7 +126,11 @@ def detect_agent_intent(message: str, history: list = None) -> bool:
 
     # Check for explicit action requests
     action_request = re.compile(
-        r"\b(create\s+(a\s+)?sheet|do\s+(the\s+)?action|perform|execute|make\s+it|in\s+the\s+sheet|not\s+answer|actions?\s+in)",
+        r"\b(create\s+(a\s+)?sheet|create\s+(a\s+)?chart|make\s+(a\s+)?chart|"
+        r"do\s+(the\s+)?action|perform|execute|make\s+it|in\s+the\s+sheet|"
+        r"not\s+answer|actions?\s+in|"
+        r"visualize|visualise|plot\s+(the\s+)?data|"
+        r"bar\s+chart|line\s+chart|pie\s+chart|doughnut\s+chart|scatter\s+chart)",
         re.IGNORECASE
     )
     if action_request.search(message):
@@ -287,6 +301,142 @@ def _persist_chat(
         logger.error(f"Background DB persist failed: {exc}")
 
 
+_COLUMN_QUESTION = re.compile(
+    r"which\s+column|what\s+column|select\s+.*column|choose\s+.*column",
+    re.IGNORECASE,
+)
+_SHEET_QUESTION = re.compile(
+    r"which\s+sheet|what\s+sheet|select\s+.*sheet",
+    re.IGNORECASE,
+)
+_RANGE_QUESTION = re.compile(
+    r"which\s+range|what\s+range|which\s+cells",
+    re.IGNORECASE,
+)
+
+
+def _detect_clarification(
+    ai_response: str,
+    sheet_metadata: dict | None,
+    sheets: list | None = None,
+    history: list[dict] | None = None,
+) -> dict | None:
+    """Detect if the AI response asks a clarifying question and build clickable options.
+
+    Returns a dict with {question, type, options} or None.
+    Suppresses clarification when the answer is already in recent history.
+    """
+    # Only trigger on responses that contain a question
+    lines = [l.strip() for l in ai_response.strip().split("\n") if l.strip()]
+    if not lines:
+        return None
+
+    # Check the last meaningful line for a question mark
+    has_question = any("?" in line for line in lines[-3:])
+    if not has_question:
+        return None
+
+    # Suppress clarification if the answer is already in recent history.
+    # e.g. user said "profit" 2 messages ago → AI shouldn't ask "which column?"
+    if history and len(history) >= 2:
+        recent_user_msgs = " ".join(
+            m.get("content", "") for m in history[-6:] if m.get("role") == "user"
+        ).lower()
+        # If column question but user already mentioned a column name from metadata
+        if _COLUMN_QUESTION.search(ai_response) and sheet_metadata:
+            columns = sheet_metadata.get("columns", [])
+            for col in columns:
+                header = col.get("header", "").lower()
+                if header and len(header) > 1 and header in recent_user_msgs:
+                    return None  # User already specified — don't show cards
+
+    # Extract question text (last line with ?)
+    question_text = ""
+    for line in reversed(lines):
+        if "?" in line:
+            question_text = line.lstrip("#*- ").strip()
+            break
+
+    # Column question
+    if _COLUMN_QUESTION.search(ai_response) and sheet_metadata:
+        columns = sheet_metadata.get("columns", [])
+        if columns:
+            options = []
+            for col in columns:
+                letter = col.get("letter", "?")
+                header = col.get("header", "")
+                col_type = col.get("type", "")
+                unique = col.get("uniqueCount", 0)
+                desc_parts = []
+                if col_type:
+                    desc_parts.append(col_type)
+                if unique:
+                    desc_parts.append(f"{unique} unique")
+                options.append({
+                    "label": f"{letter}: {header}",
+                    "value": f"Column {letter} ({header})",
+                    "description": ", ".join(desc_parts) if desc_parts else "column",
+                })
+            return {
+                "question": question_text,
+                "type": "column",
+                "options": options[:8],  # Cap at 8 options for UI
+            }
+
+    # Sheet question
+    if _SHEET_QUESTION.search(ai_response) and sheets:
+        options = []
+        for s in sheets:
+            name = s if isinstance(s, str) else s.get("name", str(s))
+            options.append({
+                "label": name,
+                "value": f"Sheet: {name}",
+                "description": "sheet",
+            })
+        if options:
+            return {
+                "question": question_text,
+                "type": "sheet",
+                "options": options[:8],
+            }
+
+    # Range question
+    if _RANGE_QUESTION.search(ai_response):
+        return {
+            "question": question_text,
+            "type": "range",
+            "options": [
+                {"label": "Full data range", "value": "Use the full data range", "description": "All rows and columns"},
+                {"label": "Current selection", "value": "Use my current selection", "description": "Selected cells only"},
+            ],
+        }
+
+    return None
+
+
+def _fetch_db_history(conversation_id: str, limit: int = 20) -> list[dict] | None:
+    """Fetch the last `limit` messages from DB for a conversation.
+
+    Returns list of {role, content} dicts ordered by created_at ASC,
+    or None if no messages found / on error.
+    """
+    try:
+        sb = get_supabase()
+        result = (
+            sb.table("messages")
+            .select("role, content")
+            .eq("conversation_id", conversation_id)
+            .order("created_at")
+            .limit(limit)
+            .execute()
+        )
+        if result.data:
+            return [{"role": m["role"], "content": m["content"]} for m in result.data]
+    except Exception as exc:
+        logger.warning(f"Failed to fetch DB history for {conversation_id}: {exc}")
+    return None
+
+
 @router.post("/query")
 async def chat_query(
     request: ChatRequest,
@@ -366,9 +516,14 @@ async def chat_query(
             request.sheet_data,
         )
 
-    # Phase 3: Build history from request (moved up for intent detection)
+    # Phase 3: Build history — prefer DB history when conversation exists
     history = None
-    if request.history:
+    if request.conversation_id:
+        db_history = _fetch_db_history(str(request.conversation_id))
+        if db_history:
+            history = db_history
+            logger.info(f"   Loaded {len(db_history)} messages from DB for conversation {request.conversation_id}")
+    if history is None and request.history:
         history = [{"role": h.role, "content": h.content} for h in request.history]
 
     # Skip sheet data for simple greetings (faster response)
@@ -389,10 +544,19 @@ async def chat_query(
     # If mode is explicitly set to "chat", never use agent (just answer questions)
     # If mode is "action" or not set, use agent for matching queries
     is_chat_mode = request.mode == ChatMode.chat
-    is_agent_query = not is_greeting and not is_chat_mode and detect_agent_intent(request.message, history)
+    is_action_mode = request.mode == ChatMode.action
+    is_agent_query = not is_greeting and not is_chat_mode and (
+        is_action_mode
+        or detect_agent_intent(request.message, history)
+        or detect_chart_intent(request.message)
+    )
 
     # Log final intent after history-aware detection
-    logger.info(f"   Intent: chart={detect_chart_intent(request.message)}, agent={is_agent_query}, greeting={is_greeting}, mode={request.mode}")
+    logger.info(
+        f"   Intent: chart={detect_chart_intent(request.message)}, "
+        f"agent={is_agent_query}, greeting={is_greeting}, "
+        f"mode={request.mode}, action_mode_override={is_action_mode}"
+    )
     logger.info("=" * 60)
 
     steps = None
@@ -433,10 +597,26 @@ async def chat_query(
                 )
                 executor = SmartExecutor(llm)
 
+                # Enrich short messages with conversation context for SmartExecutor
+                smart_message = request.message
+                if history and len(request.message.strip()) <= 20:
+                    last_exchanges = []
+                    for msg in history[-4:]:  # last 2 exchanges
+                        role = msg.get("role", "")
+                        content = msg.get("content", "")[:300]
+                        if role and content:
+                            last_exchanges.append(f"{role}: {content}")
+                    if last_exchanges:
+                        smart_message = (
+                            "Previous conversation:\n"
+                            + "\n".join(last_exchanges)
+                            + f"\n\nCurrent request: {request.message}"
+                        )
+
                 # Try smart execution
                 smart_result = await loop.run_in_executor(
                     _bg_executor,
-                    lambda: executor.execute(request.message, metadata_dict, cells=cells)
+                    lambda: executor.execute(smart_message, metadata_dict, cells=cells)
                 )
 
                 # Check if it succeeded or needs full agent
@@ -502,6 +682,7 @@ async def chat_query(
                         message=request.message,
                         sheet_data=effective_sheet_data,
                         sheet_name=effective_sheet_name,
+                        history=history,
                     ),
                 )
 
@@ -699,6 +880,15 @@ async def chat_query(
         if qa_list:
             quick_actions = qa_list
 
+    # Detect clarification questions in AI response
+    clarification = None
+    if not steps:  # Don't offer clarification when we already have an execution plan
+        sheets_list = None
+        if request.sheet_data and "cells" in (request.sheet_data or {}):
+            # Build simple sheet list from the sheets the frontend knows about
+            sheets_list = None  # Populated from frontend context if needed
+        clarification = _detect_clarification(ai_response, sheet_metadata, sheets_list, history)
+
     profile_data = timer.log("chat_query")
 
     response = {
@@ -720,6 +910,8 @@ async def chat_query(
         "sheet_metadata": sheet_metadata if sheet_metadata else None,
         # PII warning
         "pii_warning": pii_warning,
+        # Clarification cards
+        "clarification": clarification,
     }
 
     if profile:

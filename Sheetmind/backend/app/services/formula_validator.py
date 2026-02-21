@@ -66,15 +66,56 @@ KNOWN_FUNCTIONS = {
     "FLATTEN": (1, None), "TRANSPOSE": (1, 1),
     "IMPORTRANGE": (2, 2),
 
+    # Array / Lambda (newer Google Sheets)
+    "MAP": (2, None), "LAMBDA": (2, None), "REDUCE": (3, 3),
+    "BYROW": (2, 2), "BYCOL": (2, 2), "MAKEARRAY": (3, 3),
+    "LET": (3, None), "SCAN": (3, 3), "HSTACK": (1, None),
+    "VSTACK": (1, None), "TOROW": (1, 3), "TOCOL": (1, 3),
+    "WRAPCOLS": (2, 3), "WRAPROWS": (2, 3), "CHOOSEROWS": (2, None),
+    "CHOOSECOLS": (2, None),
+
     # Statistical
-    "STDEV": (1, None), "VAR": (1, None), "CORREL": (2, 2),
+    "STDEV": (1, None), "STDEVP": (1, None), "VAR": (1, None),
+    "VARP": (1, None), "CORREL": (2, 2),
     "FORECAST": (3, 3), "TREND": (1, 4), "GROWTH": (1, 4),
     "PERCENTRANK": (2, 3),
+
+    # Financial
+    "PMT": (3, 5), "FV": (3, 5), "PV": (3, 5), "NPV": (2, None),
+    "IRR": (1, 2), "RATE": (3, 6), "NPER": (3, 5), "SLN": (3, 3),
+    "DDB": (4, 5), "DB": (4, 5),
+
+    # Database
+    "DSUM": (3, 3), "DCOUNT": (3, 3), "DCOUNTA": (3, 3),
+    "DGET": (3, 3), "DAVERAGE": (3, 3), "DMAX": (3, 3),
+    "DMIN": (3, 3), "DPRODUCT": (3, 3), "DSTDEV": (3, 3),
+    "DVAR": (3, 3),
+
+    # Web/Import
+    "IMPORTHTML": (3, 3), "IMPORTXML": (2, 2), "IMPORTDATA": (1, 1),
 
     # Info
     "ISBLANK": (1, 1), "ISERROR": (1, 1), "ISNA": (1, 1),
     "ISNUMBER": (1, 1), "ISTEXT": (1, 1), "TYPE": (1, 1),
     "CELL": (1, 2), "N": (1, 1),
+    "ISLOGICAL": (1, 1), "ISFORMULA": (1, 1), "ISEVEN": (1, 1),
+    "ISODD": (1, 1), "ISERR": (1, 1), "ERROR.TYPE": (1, 1),
+    "ISREF": (1, 1), "NA": (0, 0), "SHEET": (0, 1), "SHEETS": (0, 1),
+
+    # Additional math
+    "CEILING": (1, 2), "FLOOR": (1, 2), "LOG": (1, 2),
+    "LOG10": (1, 1), "LN": (1, 1), "EXP": (1, 1),
+    "SIGN": (1, 1), "TRUNC": (1, 2),
+
+    # Additional text
+    "CHAR": (1, 1), "CODE": (1, 1), "NUMBERVALUE": (1, 3),
+
+    # Additional date
+    "TIME": (3, 3), "TIMEVALUE": (1, 1), "ISOWEEKNUM": (1, 1),
+    "DAYS": (2, 2),
+
+    # Additional logical
+    "XOR": (1, None),
 
     # Misc
     "HYPERLINK": (1, 2), "IMAGE": (1, 4), "SPARKLINE": (1, 2),
@@ -242,3 +283,57 @@ def _check_arg_counts(body: str, errors: List[str]) -> None:
             errors.append(
                 f"{func_name} accepts at most {max_args} argument(s), got {arg_count}"
             )
+
+
+# ---------------------------------------------------------------------------
+# Formula Improvement Suggestions
+# ---------------------------------------------------------------------------
+
+def suggest_alternatives(formula: str) -> List[str]:
+    """
+    Suggest modern or better alternatives for detected formula patterns.
+
+    Args:
+        formula: The formula string to analyze
+
+    Returns:
+        List of suggestion strings (may be empty)
+    """
+    suggestions = []
+    upper = formula.upper()
+
+    # VLOOKUP -> XLOOKUP
+    if "VLOOKUP" in upper:
+        suggestions.append(
+            "Consider XLOOKUP instead of VLOOKUP: more flexible, can search any column, "
+            "supports not-found default, and doesn't need column index numbers."
+        )
+
+    # Nested IF -> IFS
+    if re.search(r'IF\s*\(\s*[^,]+,\s*[^,]+,\s*IF\s*\(', upper):
+        suggestions.append(
+            "Nested IF detected. Consider IFS() for cleaner multiple-condition logic: "
+            "=IFS(cond1, val1, cond2, val2, ..., TRUE, default)."
+        )
+
+    # CONCATENATE -> TEXTJOIN or &
+    if "CONCATENATE" in upper:
+        suggestions.append(
+            "CONCATENATE is legacy. Consider TEXTJOIN(delimiter, ignore_empty, range) "
+            "for joining with delimiters, or use & operator for simple concatenation."
+        )
+
+    # INDEX+MATCH could use XLOOKUP
+    if "INDEX" in upper and "MATCH" in upper:
+        suggestions.append(
+            "INDEX+MATCH combo detected. XLOOKUP can often replace this with simpler syntax."
+        )
+
+    # Full column references
+    if re.search(r'[A-Z]:[A-Z]', upper):
+        suggestions.append(
+            "Full column references (e.g., A:A) detected. Use bounded ranges "
+            "(e.g., A2:A1000) for better performance."
+        )
+
+    return suggestions

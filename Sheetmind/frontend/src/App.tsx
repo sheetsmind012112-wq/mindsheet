@@ -412,10 +412,8 @@ function App() {
         setResponseTime(elapsed);
         setConversationId(res.conversation_id);
 
-        // Store quick actions if returned (Phase 4)
-        if (res.quick_actions && res.quick_actions.length > 0) {
-          setQuickActions(res.quick_actions);
-        }
+        // Store quick actions if returned (Phase 4), clear if not
+        setQuickActions(res.quick_actions?.length ? res.quick_actions : []);
 
         let content = res.content;
 
@@ -442,6 +440,7 @@ function App() {
             used_rag: res.used_rag ?? undefined,
             agent_timing: res.agent_timing ?? undefined,
             pii_warning: res.pii_warning ?? undefined,
+            clarification: res.clarification ?? undefined,
           };
           setMessages((prev) => [...prev, assistantMessage]);
 
@@ -465,6 +464,7 @@ function App() {
             used_rag: res.used_rag ?? undefined,
             agent_timing: res.agent_timing ?? undefined,
             pii_warning: res.pii_warning ?? undefined,
+            clarification: res.clarification ?? undefined,
           };
           setMessages((prev) => [...prev, assistantMessage]);
         }
@@ -550,6 +550,21 @@ function App() {
     setMessages((prev) => [...prev, undoMessage]);
   }, [messages]);
 
+  // Handle clicking a clarification card
+  const handleClarificationSelect = useCallback(
+    (messageId: string, value: string) => {
+      // Mark the clarification as answered (disables the cards)
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, clarificationAnswered: true } : msg
+        )
+      );
+      // Send the selected option as a new message
+      handleSend(value);
+    },
+    [handleSend],
+  );
+
   // Load a past conversation's messages
   const handleLoadConversation = useCallback(async (convId: string) => {
     trackConversationLoaded();
@@ -595,12 +610,15 @@ function App() {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
         <div className="flex flex-col items-center gap-4 animate-fade-in-up">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-xl shadow-emerald-200/40">
-            <svg className="w-6 h-6 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-xl shadow-emerald-500/20">
+            <svg className="w-6 h-6 text-white animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" opacity="0.9" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" opacity="0.7" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" opacity="0.7" />
+              <path d="M17.5 13l.372 1.128a3 3 0 001.998 1.998L21 16.5l-1.13.374a3 3 0 00-1.998 1.998L17.5 20l-.372-1.128a3 3 0 00-1.998-1.998L14 16.5l1.13-.374a3 3 0 001.998-1.998L17.5 13z" />
             </svg>
           </div>
-          <span className="text-xs text-gray-400 font-medium">Loading SheetMind...</span>
+          <span className="text-xs text-slate-400 font-medium">Loading SheetMind...</span>
         </div>
       </div>
     );
@@ -644,6 +662,7 @@ function App() {
       onSheetChange={handleSheetChange}
       onShowPricing={() => { trackPricingPageViewed(); setCurrentPage("pricing"); }}
       onUndo={handleUndo}
+      onClarificationSelect={handleClarificationSelect}
       conversations={conversations}
       activeConversationId={conversationId}
       onLoadConversation={handleLoadConversation}

@@ -151,21 +151,26 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden">
       {/* Top accent bar */}
-      <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 animate-gradient" />
+      <div className="h-1 bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-500 animate-gradient" />
 
       {/* Header with logo */}
       <div className="px-5 pt-5 pb-3 animate-fade-in-up">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-200/50 animate-float">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-float">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white">
+              <path d="M4 4h6v6H4V4Z" fill="currentColor" opacity="0.4" />
+              <path d="M14 4h6v6h-6V4Z" fill="currentColor" opacity="0.6" />
+              <path d="M4 14h6v6H4v-6Z" fill="currentColor" opacity="0.6" />
+              <path d="M14 14h6v6h-6v-6Z" fill="currentColor" />
+              <path d="M12 2l1.5 3.5L17 7l-3.5 1.5L12 12l-1.5-3.5L7 7l3.5-1.5L12 2Z" fill="currentColor" opacity="0.9" />
             </svg>
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              SheetMind
+            <h1 className="text-xl font-display font-bold">
+              <span className="text-slate-900">Sheet</span>
+              <span className="text-emerald-600">Mind</span>
             </h1>
-            <p className="text-xs text-gray-400 font-medium">AI-Powered Sheets Assistant</p>
+            <p className="text-xs text-slate-400 font-medium">AI-Powered Sheets Assistant</p>
           </div>
         </div>
       </div>
@@ -176,13 +181,13 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           {FEATURES.map((f, i) => (
             <div
               key={f.label}
-              className={`flex-1 p-2.5 rounded-xl bg-gradient-to-b from-gray-50 to-white border border-gray-100 hover:border-emerald-200 hover:shadow-sm transition-all animate-fade-in-up delay-${i + 2}`}
+              className={`flex-1 p-2.5 rounded-xl glass-card glass-card-hover animate-fade-in-up delay-${i + 2}`}
             >
               <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
                 <FeatureIcon type={f.icon} />
               </div>
-              <p className="text-xs font-semibold text-gray-800 leading-tight">{f.label}</p>
-              <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{f.desc}</p>
+              <p className="text-xs font-semibold text-slate-800 leading-tight">{f.label}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -192,10 +197,10 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       <div className="flex-1 overflow-y-auto px-5 custom-scrollbar">
         {/* Welcome heading */}
         <div className="mb-4 animate-fade-in-up delay-3">
-          <h2 className="text-lg font-bold text-gray-900">
+          <h2 className="text-lg font-bold text-slate-900">
             {mode === "login" ? "Welcome back" : "Get started free"}
           </h2>
-          <p className="text-sm text-gray-400 mt-0.5">
+          <p className="text-sm text-slate-400 mt-0.5">
             {mode === "login"
               ? "Sign in to continue"
               : "5 free messages to try everything"}
@@ -238,7 +243,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         <button
           onClick={handleGoogleLogin}
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-gray-700 font-semibold hover:border-gray-300 hover:shadow-md active:scale-[0.98] transition-all disabled:opacity-50 animate-fade-in-up delay-4"
+          className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-slate-700 font-semibold hover:border-slate-300 hover:shadow-md active:scale-[0.98] transition-all disabled:opacity-50 animate-fade-in-up delay-4"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -251,45 +256,45 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
         {/* Divider */}
         <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-gray-100"></div>
-          <span className="text-[10px] text-gray-300 font-semibold uppercase tracking-wider">or use email</span>
-          <div className="flex-1 h-px bg-gray-100"></div>
+          <div className="flex-1 h-px bg-slate-100"></div>
+          <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider">or use email</span>
+          <div className="flex-1 h-px bg-slate-100"></div>
         </div>
 
         {/* Email/Password Form */}
         <form onSubmit={handleEmailAuth} className="space-y-3 animate-fade-in-up delay-5">
           {mode === "signup" && (
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Name</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
-                className="w-full px-4 py-2.5 text-sm border-2 border-gray-100 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:bg-white transition-all placeholder-gray-300"
+                className="w-full px-4 py-2.5 text-sm border-2 border-slate-100 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:bg-white transition-all placeholder-slate-300"
                 required
               />
             </div>
           )}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Email</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full px-4 py-2.5 text-sm border-2 border-gray-100 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:bg-white transition-all placeholder-gray-300"
+              className="w-full px-4 py-2.5 text-sm border-2 border-slate-100 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:bg-white transition-all placeholder-slate-300"
               required
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Password</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-4 py-2.5 text-sm border-2 border-gray-100 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:bg-white transition-all placeholder-gray-300"
+              className="w-full px-4 py-2.5 text-sm border-2 border-slate-100 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:bg-white transition-all placeholder-slate-300"
               required
               minLength={6}
             />
@@ -297,7 +302,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-teal-700 hover:shadow-lg hover:shadow-emerald-200/50 active:scale-[0.98] transition-all disabled:opacity-50"
+            className="w-full py-3 px-4 btn-primary disabled:opacity-50"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -314,7 +319,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         </form>
 
         {/* Toggle mode */}
-        <p className="text-center text-sm text-gray-400 mt-4 mb-2">
+        <p className="text-center text-sm text-slate-400 mt-4 mb-2">
           {mode === "login" ? (
             <>
               New here?{" "}
@@ -341,12 +346,12 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-3 border-t border-gray-50">
-        <p className="text-[10px] text-gray-300 text-center">
+      <div className="px-5 py-3 border-t border-slate-50">
+        <p className="text-[10px] text-slate-300 text-center">
           By signing in, you agree to our{" "}
-          <a href="#" className="text-gray-400 hover:text-emerald-600 transition-colors">Terms</a>
+          <a href="#" className="text-slate-400 hover:text-emerald-600 transition-colors">Terms</a>
           {" & "}
-          <a href="#" className="text-gray-400 hover:text-emerald-600 transition-colors">Privacy</a>
+          <a href="#" className="text-slate-400 hover:text-emerald-600 transition-colors">Privacy</a>
         </p>
       </div>
     </div>

@@ -51,4 +51,4 @@ SheetMind is available now on the Google Workspace Marketplace. Install it, open
 
 [Get SheetMind Free →](#)
 
-We'd love to hear what you think. Reach out on Twitter or drop us an email at hello@sheetmind.com.
+We'd love to hear what you think. Reach out on Twitter or drop us an email at hello@sheetmind.xyz.

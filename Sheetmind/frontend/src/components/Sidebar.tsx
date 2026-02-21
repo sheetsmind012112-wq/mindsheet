@@ -1,7 +1,6 @@
 import Header from "./Header";
 import MessageArea from "./MessageArea";
 import InputArea from "./InputArea";
-import { TrialBanner } from "./TrialBanner";
 import type { Message, QuickAction, ChatMode, SheetInfo, ConversationListResponse, User } from "../types/api";
 
 interface SidebarProps {
@@ -26,6 +25,8 @@ interface SidebarProps {
   onShowPricing?: () => void;
   // Undo
   onUndo?: (messageId: string) => void;
+  // Clarification
+  onClarificationSelect?: (messageId: string, value: string) => void;
   // Conversation history
   conversations?: ConversationListResponse["conversations"];
   activeConversationId?: string | null;
@@ -56,6 +57,7 @@ function Sidebar({
   onSheetChange,
   onShowPricing,
   onUndo,
+  onClarificationSelect,
   conversations,
   activeConversationId,
   onLoadConversation,
@@ -86,10 +88,6 @@ function Sidebar({
         onLogout={onLogout}
         usageRefreshKey={trialRefreshKey}
       />
-      {/* Trial usage banner */}
-      <div className="px-3 pt-2">
-        <TrialBanner onUpgradeClick={onShowPricing} refreshKey={trialRefreshKey} />
-      </div>
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         <MessageArea
           messages={messages}
@@ -98,6 +96,7 @@ function Sidebar({
           responseTime={responseTime}
           onUndo={onUndo}
           onQuickAction={onQuickAction}
+          onClarificationSelect={onClarificationSelect}
         />
       </div>
       <InputArea

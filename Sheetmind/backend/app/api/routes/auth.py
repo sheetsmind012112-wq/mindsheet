@@ -7,10 +7,35 @@ from typing import Optional
 from app.core.config import settings
 from app.core.database import get_supabase, get_supabase_anon
 from app.core.auth import get_current_user
+from app.services.rate_limiter import check_rate_limit_by_ip
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract client IP, respecting X-Forwarded-For for proxied requests."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _check_auth_rate_limit(request: Request, action: str):
+    """Check IP-based rate limit for auth endpoints. Raises 429 if exceeded."""
+    ip = _get_client_ip(request)
+    rate = check_rate_limit_by_ip(ip, action)
+    if not rate["allowed"]:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please try again later.",
+            headers={
+                "Retry-After": str(rate["retry_after"] or 60),
+                "RateLimit-Limit": str(rate["limit"]),
+                "RateLimit-Remaining": "0",
+            },
+        )
 
 
 class TokenRequest(BaseModel):
@@ -62,6 +87,7 @@ async def login(request: Request):
     url = f"{settings.SUPABASE_URL}/auth/v1/authorize?" + urlencode({
         "provider": "google",
         "redirect_to": redirect_url,
+        "prompt": "select_account",
     })
 
     return {"url": url}
@@ -164,20 +190,21 @@ async def oauth_complete():
 
 
 @router.post("/signup")
-async def signup(request: SignUpRequest):
+async def signup(body: SignUpRequest, request: Request):
     """
     Sign up with email and password.
     Creates a new user in Supabase Auth.
     """
+    _check_auth_rate_limit(request, "signup")
     client = get_supabase_anon()
 
     try:
         response = client.auth.sign_up({
-            "email": request.email,
-            "password": request.password,
+            "email": body.email,
+            "password": body.password,
             "options": {
                 "data": {
-                    "name": request.name or request.email.split("@")[0],
+                    "name": body.name or body.email.split("@")[0],
                 }
             }
         })
@@ -190,8 +217,8 @@ async def signup(request: SignUpRequest):
         try:
             sb.table("users").insert({
                 "id": response.user.id,
-                "email": response.user.email or request.email,
-                "name": request.name or request.email.split("@")[0],
+                "email": response.user.email or body.email,
+                "name": body.name or body.email.split("@")[0],
                 "tier": "free",
             }).execute()
         except Exception:
@@ -213,17 +240,18 @@ async def signup(request: SignUpRequest):
 
 
 @router.post("/signin")
-async def signin(request: SignInRequest):
+async def signin(body: SignInRequest, request: Request):
     """
     Sign in with email and password.
     Returns access and refresh tokens.
     """
+    _check_auth_rate_limit(request, "signin")
     client = get_supabase_anon()
 
     try:
         response = client.auth.sign_in_with_password({
-            "email": request.email,
-            "password": request.password,
+            "email": body.email,
+            "password": body.password,
         })
 
         if not response.session:
@@ -241,8 +269,8 @@ async def signin(request: SignInRequest):
         else:
             user_record = sb.table("users").insert({
                 "id": user.id,
-                "email": user.email or request.email,
-                "name": user_meta.get("name", request.email.split("@")[0]),
+                "email": user.email or body.email,
+                "name": user_meta.get("name", body.email.split("@")[0]),
                 "tier": "free",
             }).execute().data[0]
 
@@ -264,17 +292,18 @@ async def signin(request: SignInRequest):
 
 
 @router.post("/callback")
-async def callback(request: TokenRequest):
+async def callback(body: TokenRequest, request: Request):
     """
     Exchange Supabase tokens after OAuth redirect.
     The frontend sends the access_token and refresh_token it received
     from the URL hash after Google OAuth redirect.
     Returns user info + tokens.
     """
+    _check_auth_rate_limit(request, "callback")
     client = get_supabase_anon()
 
     try:
-        session = client.auth.set_session(request.access_token, request.refresh_token)
+        session = client.auth.set_session(body.access_token, body.refresh_token)
         user = session.user
 
         if not user:
@@ -313,12 +342,13 @@ async def callback(request: TokenRequest):
 
 
 @router.post("/refresh")
-async def refresh(request: RefreshRequest):
+async def refresh(body: RefreshRequest, request: Request):
     """Refresh an expired access token using the refresh token."""
+    _check_auth_rate_limit(request, "refresh")
     client = get_supabase_anon()
 
     try:
-        session = client.auth.refresh_session(request.refresh_token)
+        session = client.auth.refresh_session(body.refresh_token)
 
         if not session or not session.session:
             raise HTTPException(status_code=401, detail="Invalid refresh token")

@@ -11,6 +11,7 @@ from app.services.usage import check_and_increment
 from app.services.rate_limiter import check_rate_limit
 from app.services.cache import get_cached, set_cached
 from app.services.profiler import StepTimer
+from app.services.formula_validator import validate_formula
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +224,12 @@ async def explain_formula_endpoint(
             response_data["_profile"] = profile_data
         return response_data
 
+    # Validate formula syntax before explaining
+    is_valid, syntax_errors = validate_formula(request.formula)
+    syntax_note = ""
+    if not is_valid:
+        syntax_note = "Note: This formula has syntax issues: " + "; ".join(syntax_errors) + "\n\n"
+
     timer.start("ai_call")
     if request.mode == "step_by_step":
         try:
@@ -241,6 +248,8 @@ async def explain_formula_endpoint(
     timer.start("confidence")
     if request.mode == "step_by_step":
         explanation_text = result.get("full_explanation") or result.get("summary", "")
+        if syntax_note:
+            explanation_text = syntax_note + explanation_text
         conf = calculate_confidence(
             message=f"Explain: {request.formula}",
             response=explanation_text,
@@ -254,13 +263,14 @@ async def explain_formula_endpoint(
             "simpler_alternative": result.get("simpler_alternative"),
         }
     else:
+        explanation_result = syntax_note + result if syntax_note else result
         conf = calculate_confidence(
             message=f"Explain: {request.formula}",
-            response=result,
+            response=explanation_result,
             sheet_data=None,
         )
         response_data = {
-            "explanation": result,
+            "explanation": explanation_result,
             "confidence_score": conf["score"],
             "confidence_tier": conf["tier"],
         }
@@ -334,9 +344,18 @@ async def fix_formula_endpoint(
     )
     timer.stop("confidence")
 
+    fixed_formula = result.get("fixed_formula", "")
+    what_was_wrong = result.get("what_was_wrong", "")
+
+    # Validate the AI's fixed formula for syntax correctness
+    if fixed_formula:
+        fix_valid, fix_errors = validate_formula(fixed_formula)
+        if not fix_valid:
+            what_was_wrong += " | Warning: The suggested fix has syntax issues: " + "; ".join(fix_errors)
+
     response_data = {
-        "fixed_formula": result.get("fixed_formula", ""),
-        "what_was_wrong": result.get("what_was_wrong", ""),
+        "fixed_formula": fixed_formula,
+        "what_was_wrong": what_was_wrong,
         "explanation": result.get("explanation", ""),
         "confidence_score": conf["score"],
         "confidence_tier": conf["tier"],

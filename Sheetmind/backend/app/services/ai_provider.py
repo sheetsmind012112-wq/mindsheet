@@ -5,6 +5,7 @@ import re
 from openai import OpenAI
 
 from app.core.config import settings
+from app.services.formula_category_docs import get_mini_cheat_sheet
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,29 @@ EXAMPLE 3:
 User: "List all unique departments"
 You: "The unique departments in column C are: Engineering, Marketing, Sales, HR, Finance (5 total)."
 
+EXAMPLE 4:
+User: "Show the top 10 values in Profit column"
+You: "Here are the top 10 profit values (column G, sorted highest to lowest):
+1. Row 15: $12,450
+2. Row 8: $11,200
+... (list all 10)"
+
+Then include a sort action:
+```sheetaction
+{"action": "sort", "column": "G", "ascending": false}
+```
+
+EXAMPLE 5:
+User: "Show me top 5 sales"
+You: "Here are the top 5 sales values from column F:
+1. Row 22: $45,000
+2. Row 11: $38,500
+..."
+
+```sheetaction
+{"action": "sort", "column": "F", "ascending": false}
+```
+
 Rules:
 1. ALWAYS read the table headers and data before responding.
 2. When referencing data, cite exact cell ranges (e.g. "Cell B3", "Range A2:A50").
@@ -48,6 +72,17 @@ Rules:
 4. Keep responses concise.
 5. NEVER say you cannot answer a question about the data. You have the data — analyze it and respond.
 6. NEVER refuse to count, sum, average, or list data. You have full access to the spreadsheet content.
+7. DO NOT ask unnecessary clarifying questions. If the user says "show the top 10 values", analyze ALL numeric columns and show the top 10 from the most relevant one. If ambiguous, pick the most likely column and show results — don't ask "which column?"
+8. CRITICAL — SHORT FOLLOW-UP MESSAGES: When the user sends a short message (1-3 words) like "asc", "descending", "yes", "profit", "the other way", "do it", "that one", "column B", you MUST interpret it as a continuation of the previous conversation. Look at the conversation history:
+   - "asc" or "ascending" after a sort → re-sort the SAME column in ascending order
+   - "descending" or "desc" after a sort → re-sort the SAME column in descending order
+   - A column name like "profit" after you asked a question → use that column with the SAME operation
+   - "yes", "do it", "go ahead" → proceed with whatever you proposed
+   - NEVER ask "which column?" if the column was already mentioned in the last 2-3 messages
+9. When the user refers to a follow-up (e.g. "no, the profit column"), understand they are correcting or specifying something from the previous message. Re-do the analysis with the corrected column.
+10. ALWAYS perform the actual analysis and return real values from the data. Never just describe what columns exist — that is useless. The user wants RESULTS, not descriptions.
+11. For "top N" or "bottom N" requests, sort the data mentally, list the top/bottom N values with their row references, AND include a sort sheet action.
+12. NEVER re-ask a question whose answer is already in the conversation history. If the user already said "profit" or "column G", remember that for subsequent messages in the same conversation.
 
 SHEET ACTIONS:
 ONLY when the user explicitly asks to FILTER, SORT, HIGHLIGHT, CREATE A CHART, or MODIFY the sheet, include a JSON action block at the END of your response.
@@ -165,7 +200,7 @@ The source sheet has Major in column E (E2:E31) and Value in column G (G2:G31).
 Steps: createSheet → setValues (headers) → setFormula (UNIQUE for majors) → setFormula (SUMIF with fillDown) → formatRange (headers)
 """
 
-FORMULA_SYSTEM_PROMPT = """You are SheetMind, an AI assistant that processes spreadsheet cell formula requests.
+FORMULA_SYSTEM_PROMPT = f"""You are SheetMind, an AI assistant that processes spreadsheet cell formula requests.
 
 Rules:
 1. Return ONLY the direct result value — no explanations, no markdown, no extra text.
@@ -173,9 +208,11 @@ Rules:
 3. If asked to summarize, return the summary.
 4. If asked to calculate, return the number.
 5. When referencing source data, cite row numbers and ranges.
+
+{get_mini_cheat_sheet()}
 """
 
-EXPLAIN_SYSTEM_PROMPT = """You are SheetMind, an AI assistant that explains spreadsheet formulas.
+EXPLAIN_SYSTEM_PROMPT = f"""You are SheetMind, an AI assistant that explains spreadsheet formulas.
 
 Rules:
 1. Explain the formula step by step in plain English.
@@ -183,22 +220,26 @@ Rules:
 3. Then break down each function/component.
 4. Mention any potential issues or edge cases.
 5. Suggest simpler alternatives if they exist.
+
+{get_mini_cheat_sheet()}
 """
 
-FIX_SYSTEM_PROMPT = """You are SheetMind, an AI assistant that fixes broken spreadsheet formulas.
+FIX_SYSTEM_PROMPT = f"""You are SheetMind, an AI assistant that fixes broken spreadsheet formulas.
 
 You will receive a broken formula and its error message. Respond in this exact JSON format:
-{
+{{
   "fixed_formula": "=THE_CORRECTED_FORMULA(...)",
   "what_was_wrong": "Brief explanation of the error",
   "explanation": "What the fixed formula does"
-}
+}}
 
 Rules:
 1. Always return valid JSON with the three fields above.
 2. The fixed_formula must be a valid spreadsheet formula starting with =.
 3. Keep the fix minimal — only change what's necessary.
 4. If sheet context is provided, use it to validate cell references.
+
+{get_mini_cheat_sheet()}
 """
 
 # ---------------------------------------------------------------------------
@@ -337,6 +378,38 @@ def _build_context_message(sheet_data: dict | None, sheet_name: str | None) -> s
     return "\n".join(parts)
 
 
+def _enrich_short_message(user_message: str, history: list[dict] | None) -> str:
+    """For short follow-up messages, prepend the last exchange as explicit context.
+
+    This ensures the LLM sees the relevant context right next to the message,
+    even if it skims over the conversation history.
+    """
+    if not history or len(user_message.strip()) > 20:
+        return user_message
+
+    # Grab the last user + assistant exchange
+    last_user = None
+    last_assistant = None
+    for msg in reversed(history):
+        if msg.get("role") == "assistant" and last_assistant is None:
+            last_assistant = msg["content"][:300]
+        elif msg.get("role") == "user" and last_user is None:
+            last_user = msg["content"][:200]
+        if last_user and last_assistant:
+            break
+
+    if not last_user and not last_assistant:
+        return user_message
+
+    parts = ["[CONTEXT FROM PREVIOUS MESSAGES — use this to understand the follow-up below]"]
+    if last_user:
+        parts.append(f"Previous user message: {last_user}")
+    if last_assistant:
+        parts.append(f"Previous AI response: {last_assistant}")
+    parts.append(f"\n[CURRENT FOLLOW-UP MESSAGE]\n{user_message}")
+    return "\n".join(parts)
+
+
 def _call_model(
     model: str,
     system_prompt: str,
@@ -353,6 +426,9 @@ def _call_model(
     """
     if client is None:
         client = _get_gemini_client()
+
+    # Enrich short follow-ups with explicit context from last exchange
+    user_message = _enrich_short_message(user_message, history)
 
     messages = [{"role": "system", "content": system_prompt}]
 
@@ -591,26 +667,28 @@ Rules:
 4. Keep it simple and readable.
 """
 
-ENHANCED_EXPLAIN_SYSTEM_PROMPT = """You are SheetMind, an AI assistant that explains spreadsheet formulas in detail.
+ENHANCED_EXPLAIN_SYSTEM_PROMPT = f"""You are SheetMind, an AI assistant that explains spreadsheet formulas in detail.
 
 Return ONLY valid JSON — no markdown, no explanations outside the JSON, no code fences.
 
 The JSON must have this exact structure:
-{
+{{
   "summary": "One-sentence summary of what the formula does",
   "steps": [
-    {"step": 1, "function": "FUNCTION_NAME", "description": "What this part does"},
-    {"step": 2, "function": "FUNCTION_NAME", "description": "What this part does"}
+    {{"step": 1, "function": "FUNCTION_NAME", "description": "What this part does"}},
+    {{"step": 2, "function": "FUNCTION_NAME", "description": "What this part does"}}
   ],
   "simpler_alternative": "A simpler formula that achieves the same result, or null if none exists",
   "full_explanation": "A complete plain-English explanation of the formula"
-}
+}}
 
 Rules:
 1. Always return valid JSON with all four fields above.
 2. Break down EVERY function/operator in the formula into its own step.
 3. If no simpler alternative exists, set simpler_alternative to null.
 4. The full_explanation should mention edge cases and potential issues.
+
+{get_mini_cheat_sheet()}
 """
 
 

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import ScrollReveal from '@/components/ScrollReveal'
-import { signUp, openOAuthPopup, exchangeOAuthTokens, storeTokens } from '@/lib/auth'
+import { signUp, openOAuthPopup, exchangeOAuthTokens, storeTokens, storeUser } from '@/lib/auth'
 
 export default function SignUpPage() {
   const [firstName, setFirstName] = useState('')
@@ -51,6 +51,7 @@ export default function SignUpPage() {
       const tokens = await openOAuthPopup()
       const data = await exchangeOAuthTokens(tokens.access_token, tokens.refresh_token)
       storeTokens(data.access_token, data.refresh_token, data.expires_at)
+      storeUser(data.user)
       setSuccess('Account created! Redirecting...')
       // Redirect to homepage or dashboard after a brief moment
       setTimeout(() => { window.location.href = '/' }, 1000)

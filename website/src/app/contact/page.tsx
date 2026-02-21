@@ -6,6 +6,18 @@ import ScrollReveal from '@/components/ScrollReveal'
 export const metadata: Metadata = {
   title: 'Contact — SheetMind | Get in Touch',
   description: 'Have questions about SheetMind? Get in touch with our team for support, sales, or partnership inquiries.',
+  alternates: {
+    canonical: '/contact',
+  },
+  openGraph: {
+    title: 'Contact — SheetMind | Get in Touch',
+    description: 'Have questions about SheetMind? Get in touch with our team for support, sales, or partnership inquiries.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Contact — SheetMind | Get in Touch',
+    description: 'Have questions about SheetMind? Get in touch with our team for support, sales, or partnership inquiries.',
+  },
 }
 
 const contactMethods = [
@@ -15,8 +27,8 @@ const contactMethods = [
     ),
     title: 'Email Us',
     description: 'For general inquiries and support.',
-    action: 'hello@sheetmind.com',
-    href: 'mailto:hello@sheetmind.com',
+    action: 'hello@sheetmind.xyz',
+    href: 'mailto:hello@sheetmind.xyz',
   },
   {
     icon: (

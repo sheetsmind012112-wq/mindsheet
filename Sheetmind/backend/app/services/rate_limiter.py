@@ -123,3 +123,68 @@ def check_rate_limit(user_id: str, tier: str = "free") -> dict:
     except Exception as e:
         logger.warning(f"Rate limit check failed, allowing request: {e}")
         return {"allowed": True, "limit": limit, "remaining": limit, "retry_after": None}
+
+
+# ---------------------------------------------------------------------------
+# IP-based rate limiting for auth endpoints
+# ---------------------------------------------------------------------------
+
+AUTH_RATE_LIMITS = {
+    "signup": 5,      # 5 signups per IP per minute
+    "signin": 10,     # 10 login attempts per IP per minute
+    "refresh": 30,    # 30 refreshes per IP per minute
+    "callback": 10,   # 10 OAuth callbacks per IP per minute
+}
+
+
+def check_rate_limit_by_ip(ip: str, action: str = "signin") -> dict:
+    """
+    IP-based rate limiting for auth endpoints.
+
+    Returns:
+        {
+            "allowed": bool,
+            "limit": int,
+            "remaining": int,
+            "retry_after": int | None,
+        }
+    """
+    r = _get_redis()
+    limit = AUTH_RATE_LIMITS.get(action, 10)
+
+    if r is None:
+        # If Redis is down, allow the request (fail open)
+        return {"allowed": True, "limit": limit, "remaining": limit, "retry_after": None}
+
+    key = f"auth_rate:{action}:{ip}:{int(time.time()) // WINDOW_SECONDS}"
+
+    try:
+        pipe = r.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, WINDOW_SECONDS)
+        results = pipe.execute()
+
+        current_count = results[0]
+        remaining = max(0, limit - current_count)
+        allowed = current_count <= limit
+
+        retry_after = None
+        if not allowed:
+            ttl = r.ttl(key)
+            retry_after = ttl if ttl > 0 else WINDOW_SECONDS
+
+        return {
+            "allowed": allowed,
+            "limit": limit,
+            "remaining": remaining,
+            "retry_after": retry_after,
+        }
+    except redis.exceptions.ConnectionError as e:
+        global _redis_client, _redis_last_fail
+        _redis_client = None
+        _redis_last_fail = time.time()
+        logger.warning(f"Auth rate limit check failed (connection lost): {e}")
+        return {"allowed": True, "limit": limit, "remaining": limit, "retry_after": None}
+    except Exception as e:
+        logger.warning(f"Auth rate limit check failed: {e}")
+        return {"allowed": True, "limit": limit, "remaining": limit, "retry_after": None}

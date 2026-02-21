@@ -109,21 +109,21 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 to-white">
       {/* Header */}
-      <div className="p-4 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
+      <div className="p-4 border-b border-slate-100 bg-white/90 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div>
-            <h1 className="font-bold text-lg text-gray-800">Pricing</h1>
-            <p className="text-xs text-gray-500">Choose the plan that works for you</p>
+            <h1 className="font-bold text-lg text-slate-800">Pricing</h1>
+            <p className="text-xs text-slate-500">Choose the plan that works for you</p>
           </div>
         </div>
       </div>
@@ -163,13 +163,13 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
 
         {/* Billing toggle */}
         <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
             <button
               onClick={() => { setSelectedBilling("monthly"); trackBillingToggleChanged("monthly"); }}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 selectedBilling === "monthly"
-                  ? "bg-white text-gray-800 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
               Monthly
@@ -178,8 +178,8 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
               onClick={() => { setSelectedBilling("annual"); trackBillingToggleChanged("annual"); }}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 selectedBilling === "annual"
-                  ? "bg-white text-gray-800 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
               Annual
@@ -197,8 +197,8 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
                 plan.popular
                   ? "border-emerald-500 bg-emerald-50/50"
                   : plan.current
-                  ? "border-gray-300 bg-gray-50"
-                  : "border-gray-200 bg-white hover:border-gray-300"
+                  ? "border-slate-300 bg-slate-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
               }`}
             >
               {plan.popular && (
@@ -211,12 +211,12 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
 
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="font-bold text-gray-800">{plan.name}</h3>
-                  <p className="text-xs text-gray-500">{plan.description}</p>
+                  <h3 className="font-bold text-slate-800">{plan.name}</h3>
+                  <p className="text-xs text-slate-500">{plan.description}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-2xl font-bold text-gray-800">{plan.price}</span>
-                  <span className="text-xs text-gray-500">{plan.period}</span>
+                  <span className="text-2xl font-bold text-slate-800">{plan.price}</span>
+                  <span className="text-xs text-slate-500">{plan.period}</span>
                 </div>
               </div>
 
@@ -228,11 +228,11 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     )}
-                    <span className={`text-sm ${feature.included ? "text-gray-700" : "text-gray-400"}`}>
+                    <span className={`text-sm ${feature.included ? "text-slate-700" : "text-slate-400"}`}>
                       {feature.text}
                     </span>
                   </div>
@@ -244,9 +244,9 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
                 disabled={plan.current || isLoading}
                 className={`w-full py-2.5 rounded-lg font-medium transition-all ${
                   plan.popular
-                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700"
+                    ? "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600"
                     : plan.current
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                     : "border-2 border-emerald-600 text-emerald-700 bg-white hover:bg-emerald-50"
                 } disabled:opacity-50`}
               >
@@ -258,7 +258,7 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
 
         {/* FAQ link */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-slate-500">
             Have questions?{" "}
             <a href="#" className="text-emerald-600 hover:underline">
               View FAQ
@@ -268,8 +268,8 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-gray-100 bg-white/80">
-        <p className="text-xs text-gray-400 text-center">
+      <div className="p-3 border-t border-slate-100 bg-white/80">
+        <p className="text-xs text-slate-400 text-center">
           Secure payments powered by Stripe. Cancel anytime.
         </p>
       </div>

@@ -384,6 +384,59 @@ def get_column_stats(column: str) -> str:
     return json.dumps(result, indent=2)
 
 
+@tool
+def get_chart_range(column: str) -> str:
+    """
+    Get the correct startRow and endRow for creating a chart based on unique values in a column.
+
+    Use this BEFORE create_chart to get the exact row range.
+
+    Args:
+        column: The column letter used for grouping/labels (e.g., "A" for the UNIQUE column in summary sheet)
+
+    Returns:
+        JSON with startRow, endRow, uniqueCount, and fillDownLastRow ready to use in create_chart and autoFillDown.
+    """
+    ctx = _current_sheet_context.get()
+    if not ctx or "cells" not in ctx:
+        return '{"error": "No sheet data available"}'
+
+    metadata = ctx.get("metadata", {})
+    cells = ctx.get("cells", {})
+    col_upper = column.upper()
+
+    # Try to get unique count from metadata
+    columns = metadata.get("columns", [])
+    unique_count = None
+
+    for col in columns:
+        col_letter = col.get("letter", "")
+        if col_letter.upper() == col_upper:
+            unique_count = col.get("unique_count") or col.get("uniqueCount")
+            break
+
+    if unique_count is None:
+        # Fallback: calculate from cell data
+        values = []
+        for cell_ref, value in cells.items():
+            parsed_col, row = _parse_cell_ref(cell_ref)
+            if parsed_col == col_upper and row and row > 1:
+                values.append(str(value))
+        unique_count = len(set(values)) if values else 10
+
+    start_row = 2  # Data starts at row 2 (row 1 is headers)
+    end_row = start_row + unique_count - 1
+    fill_down_last_row = 1 + unique_count  # For autoFillDown
+
+    return json.dumps({
+        "startRow": start_row,
+        "endRow": end_row,
+        "uniqueCount": unique_count,
+        "fillDownLastRow": fill_down_last_row,
+        "explanation": f"{unique_count} unique values -> chart rows {start_row} to {end_row}, autoFillDown to row {fill_down_last_row}"
+    })
+
+
 # ---------------------------------------------------------------------------
 # FORMULA KNOWLEDGE BASE TOOL
 # ---------------------------------------------------------------------------
@@ -414,7 +467,7 @@ def lookup_formula(intent: str) -> str:
 
     ALWAYS use this tool before set_formula when doing aggregations!
     """
-    from app.services.formula_patterns import get_formula_for_intent
+    from app.services.formula_patterns import get_formula_for_intent, find_formula_pattern, format_pattern_for_prompt
 
     # Get sheet context for filling in examples
     ctx = _current_sheet_context.get()
@@ -423,6 +476,13 @@ def lookup_formula(intent: str) -> str:
     last_row = metadata.get("last_row", 100)
 
     result = get_formula_for_intent(intent, sheet_name, last_row)
+
+    # Enhance with formatted pattern for better agent readability
+    if result.get("found"):
+        patterns = find_formula_pattern(intent)
+        if patterns:
+            result["formatted_guide"] = format_pattern_for_prompt(patterns[0])
+
     return json.dumps(result, indent=2)
 
 
@@ -502,11 +562,23 @@ def _validate_and_fix_formula(formula: str, last_row: int) -> tuple[str, list[st
     fixed = partial_col_pattern.sub(replace_partial_col, fixed)
 
     # Fix 4: Syntax validation (parentheses, function names, arg counts)
-    from app.services.formula_validator import validate_formula
+    from app.services.formula_validator import validate_formula, suggest_alternatives
     is_valid, syntax_errors = validate_formula(fixed)
     if not is_valid:
+        # Classify errors as critical vs non-critical
+        critical_keywords = ["parenthesis", "Unknown function", "Empty formula", "must start"]
         for err in syntax_errors:
-            warnings.append(f"SYNTAX: {err}")
+            is_critical = any(kw.lower() in err.lower() for kw in critical_keywords)
+            if is_critical:
+                logger.warning(f"Formula critical syntax error: {err} | formula: {fixed[:100]}")
+                warnings.append(f"CRITICAL SYNTAX ERROR: {err}")
+            else:
+                warnings.append(f"SYNTAX: {err}")
+
+    # Fix 5: Suggest modern alternatives
+    suggestions = suggest_alternatives(fixed)
+    if suggestions:
+        warnings.extend([f"Suggestion: {s}" for s in suggestions])
 
     return fixed, warnings
 
@@ -804,6 +876,7 @@ READING_TOOLS = [
     get_headers,
     get_column_values,
     get_column_stats,  # Get unique count for chart sizing
+    get_chart_range,   # Get startRow/endRow for charts
     get_row,
     get_cell,
     get_data_range,

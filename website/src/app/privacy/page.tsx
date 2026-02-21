@@ -5,6 +5,21 @@ import Footer from '@/components/Footer'
 export const metadata: Metadata = {
   title: 'Privacy Policy — SheetMind',
   description: 'SheetMind privacy policy. Learn how we handle your data.',
+  alternates: {
+    canonical: '/privacy',
+  },
+  robots: {
+    index: false,
+  },
+  openGraph: {
+    title: 'Privacy Policy — SheetMind',
+    description: 'SheetMind privacy policy. Learn how we handle your data.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Privacy Policy — SheetMind',
+    description: 'SheetMind privacy policy. Learn how we handle your data.',
+  },
 }
 
 export default function PrivacyPage() {
@@ -74,7 +89,7 @@ export default function PrivacyPage() {
             <h2>Contact</h2>
             <p>
               If you have questions about this privacy policy, please contact us at{' '}
-              <a href="mailto:privacy@sheetmind.com">privacy@sheetmind.com</a>.
+              <a href="mailto:privacy@sheetmind.xyz">privacy@sheetmind.xyz</a>.
             </p>
           </div>
         </div>
