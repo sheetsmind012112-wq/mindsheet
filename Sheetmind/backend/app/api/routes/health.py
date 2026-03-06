@@ -17,7 +17,7 @@ router = APIRouter()
 _CHECK_TIMEOUT = 3
 
 
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     return {
         "status": "healthy",
@@ -43,7 +43,7 @@ def _check_redis() -> str:
     return "unavailable"
 
 
-@router.get("/health/db")
+@router.api_route("/health/db", methods=["GET", "HEAD"])
 async def health_check_db():
     """Check Supabase and Redis connectivity. Returns 503 if any critical service is down."""
     checks: dict = {}
