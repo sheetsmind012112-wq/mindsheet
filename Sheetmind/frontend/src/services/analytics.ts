@@ -2,7 +2,7 @@ import posthog from "posthog-js";
 
 // ── Configuration ──────────────────────────────────────────────────────────
 // Replace with your PostHog project API key and host after setup.
-const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY || "phc_gp7vSW0FLAlbrEnQdw0PZGxDlULacJPQkyH6vazvV04";
+const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY || "";
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
 
 let initialized = false;
@@ -13,7 +13,7 @@ const modesUsed = new Set<string>();
 // ── Initialization ─────────────────────────────────────────────────────────
 
 export function initAnalytics(): void {
-  if (initialized) return;
+  if (initialized || !POSTHOG_KEY) return;
 
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
