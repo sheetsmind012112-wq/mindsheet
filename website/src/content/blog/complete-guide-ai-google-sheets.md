@@ -7,6 +7,7 @@ authorTitle: "Content"
 authorImage: ""
 category: "Guide"
 readTime: "8 min read"
+keywords: ["AI for Google Sheets", "best AI Google Sheets tools 2026", "Google Sheets AI guide", "AI spreadsheet tools comparison", "GPT for Sheets alternatives", "conversational AI spreadsheet"]
 ---
 
 ## AI in Google Sheets: The Landscape in 2026

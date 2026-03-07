@@ -7,6 +7,7 @@ authorTitle: "Security"
 authorImage: ""
 category: "Security"
 readTime: "5 min read"
+keywords: ["AI spreadsheet safety checklist", "safe AI Google Sheets", "AI edit spreadsheet risks", "Google Sheets AI security", "protect data AI spreadsheet", "AI undo spreadsheet"]
 ---
 
 ## AI Is Powerful. Unchecked AI Is Dangerous.

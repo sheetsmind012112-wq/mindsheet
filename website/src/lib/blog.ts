@@ -17,6 +17,7 @@ export interface BlogPost {
   category: string
   readTime: string
   image?: string
+  keywords?: string[]
   content: string
 }
 
@@ -31,6 +32,7 @@ export interface BlogPostMeta {
   category: string
   readTime: string
   image?: string
+  keywords?: string[]
 }
 
 export function getAllPosts(): BlogPostMeta[] {
@@ -54,6 +56,7 @@ export function getAllPosts(): BlogPostMeta[] {
       category: data.category || 'General',
       readTime: data.readTime || '5 min read',
       image: data.image || undefined,
+      keywords: Array.isArray(data.keywords) ? data.keywords : undefined,
     }
   })
 
@@ -82,6 +85,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     category: data.category || 'General',
     readTime: data.readTime || '5 min read',
     image: data.image || undefined,
+    keywords: Array.isArray(data.keywords) ? data.keywords : undefined,
     content: htmlContent,
   }
 }

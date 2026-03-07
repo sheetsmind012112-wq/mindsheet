@@ -7,6 +7,7 @@ authorTitle: "Founders"
 authorImage: ""
 category: "Product"
 readTime: "4 min read"
+keywords: ["SheetMind", "AI Google Sheets addon", "Google Sheets AI sidebar", "spreadsheet AI undo", "PII detection spreadsheet", "formula validation AI", "AI for Google Sheets"]
 ---
 
 ## The Problem

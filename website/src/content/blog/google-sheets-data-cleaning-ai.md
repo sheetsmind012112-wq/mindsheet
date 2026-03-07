@@ -7,6 +7,7 @@ authorTitle: "Product"
 authorImage: ""
 category: "Tutorial"
 readTime: "6 min read"
+keywords: ["Google Sheets data cleaning AI", "clean spreadsheet data with AI", "AI data cleaning Google Sheets", "remove duplicates AI spreadsheet", "fix messy data Google Sheets", "AI spreadsheet cleanup"]
 ---
 
 If you've ever received a spreadsheet from another team — or imported data from a CRM, ERP, or CSV export — you know what messy data looks like. Duplicate rows. Inconsistent capitalization. Dates formatted as text. Phone numbers in six different formats. Category values with typos: "saas", "SaaS", "SAAS", and "Saas" all meaning the same thing.

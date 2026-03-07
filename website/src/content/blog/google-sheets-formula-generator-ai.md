@@ -7,6 +7,7 @@ authorTitle: "Product"
 authorImage: ""
 category: "Tutorial"
 readTime: "5 min read"
+keywords: ["Google Sheets formula generator AI", "AI formula generator spreadsheet", "write Google Sheets formulas with AI", "VLOOKUP AI helper", "spreadsheet formula generator", "Google Sheets ARRAYFORMULA AI"]
 ---
 
 Writing Google Sheets formulas is one of those skills that looks simple from the outside and turns out to be surprisingly painful in practice. `VLOOKUP` has an argument order most people have to look up every single time. `ARRAYFORMULA` with nested `IF` statements can take an hour to get right. And `QUERY` has its own pseudo-SQL syntax that has nothing to do with anything else in Sheets.

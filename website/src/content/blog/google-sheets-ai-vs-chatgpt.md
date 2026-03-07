@@ -7,6 +7,7 @@ authorTitle: "Product"
 authorImage: ""
 category: "Guide"
 readTime: "5 min read"
+keywords: ["Google Sheets AI vs ChatGPT", "ChatGPT for spreadsheets", "AI for Google Sheets vs ChatGPT", "best AI spreadsheet tool", "ChatGPT spreadsheet alternative", "purpose-built AI Google Sheets"]
 ---
 
 Using ChatGPT to analyze a spreadsheet is like using a wrench to hammer a nail. It works — you can make it work — but it's not what either tool was designed for, and the friction shows.

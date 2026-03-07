@@ -7,6 +7,7 @@ authorTitle: "Product"
 authorImage: ""
 category: "Guide"
 readTime: "6 min read"
+keywords: ["analyze Google Sheets with AI", "Google Sheets data analysis AI", "AI spreadsheet analysis", "ChatGPT Google Sheets alternative", "AI data insights spreadsheet", "Google Sheets AI queries"]
 ---
 
 Most people who want to analyze their Google Sheets data do something like this: they copy a few hundred rows, paste them into ChatGPT, and type "summarize this." It works — once. The moment the data changes, the process starts over. And if the sheet has 5,000 rows, good luck even pasting it all.
