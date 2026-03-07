@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { usageApi } from "../services/api";
+import { usageApi, billingApi } from "../services/api";
 import type { TrialStatus } from "../types/api";
 import { trackPricingPageViewed, trackPricingPlanSelected, trackBillingToggleChanged } from "../services/analytics";
 
@@ -96,13 +96,15 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
     trackPricingPlanSelected(planName, selectedBilling);
     setIsLoading(true);
     try {
-      // TODO: Integrate with Dodo Payments
-      if (onSelectPlan) {
-        onSelectPlan(planName);
-      } else {
-        // For now, show alert
-        alert(`Upgrade to ${planName} - Payment integration coming soon!`);
-      }
+      const planId = `${planName.toLowerCase()}_${selectedBilling === "annual" ? "annual" : "monthly"}` as
+        | "pro_monthly" | "pro_annual" | "team_monthly" | "team_annual";
+      const { checkout_url } = await billingApi.createCheckout(planId);
+      // Open checkout in a new tab — sidebar iframe cannot navigate top-level
+      window.open(checkout_url, "_blank");
+      if (onSelectPlan) onSelectPlan(planName);
+    } catch {
+      // Surface error to user rather than silently failing
+      alert("Failed to start checkout. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -270,7 +272,7 @@ export function PricingPage({ onBack, onSelectPlan }: PricingPageProps) {
       {/* Footer */}
       <div className="p-3 border-t border-slate-100 bg-white/80">
         <p className="text-xs text-slate-400 text-center">
-          Secure payments powered by Stripe. Cancel anytime.
+          Secure payments powered by Dodo Payments. Cancel anytime.
         </p>
       </div>
     </div>

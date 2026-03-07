@@ -1,10 +1,10 @@
 import asyncio
 import logging
 import time
-from functools import partial
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
+from typing import Optional
 
 from app.core.config import settings
 from app.core.database import get_supabase
@@ -44,8 +44,15 @@ def _check_redis() -> str:
 
 
 @router.api_route("/health/db", methods=["GET", "HEAD"])
-async def health_check_db():
-    """Check Supabase and Redis connectivity. Returns 503 if any critical service is down."""
+async def health_check_db(x_health_key: Optional[str] = Header(default=None)):
+    """Check Supabase and Redis connectivity. Returns 503 if any critical service is down.
+
+    In production, requires X-Health-Key header matching HEALTH_CHECK_KEY env var.
+    Without the key, returns only status (no internal details).
+    """
+    is_prod = settings.APP_ENV == "production"
+    health_key = getattr(settings, "HEALTH_CHECK_KEY", "")
+    authorized = not is_prod or (health_key and x_health_key == health_key)
     checks: dict = {}
     healthy = True
     start = time.time()
@@ -89,11 +96,10 @@ async def health_check_db():
     status = "healthy" if healthy else "degraded"
     status_code = 200 if healthy else 503
 
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "status": status,
-            "checks": checks,
-            "elapsed_ms": elapsed_ms,
-        },
-    )
+    # Only return internal details to authorized callers
+    content: dict = {"status": status}
+    if authorized:
+        content["checks"] = checks
+        content["elapsed_ms"] = elapsed_ms
+
+    return JSONResponse(status_code=status_code, content=content)

@@ -639,10 +639,6 @@ function App() {
     return (
       <PricingPage
         onBack={() => setCurrentPage("chat")}
-        onSelectPlan={(plan) => {
-          trackPricingPlanSelected(plan, "monthly");
-          // TODO: Handle plan selection with Dodo Payments checkout
-        }}
       />
     );
   }

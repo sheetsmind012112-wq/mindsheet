@@ -24,7 +24,6 @@ export function initAnalytics(): void {
     disable_session_recording: false,
     person_profiles: "always", // Capture events for anonymous AND identified users
     loaded: (ph) => {
-      console.log("[PostHog] Loaded, distinct_id:", ph.get_distinct_id());
       ph.capture("posthog_initialized", { source: "sheetmind_sidebar" });
     },
   });

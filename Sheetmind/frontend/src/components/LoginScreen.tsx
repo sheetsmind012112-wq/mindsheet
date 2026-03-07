@@ -53,7 +53,8 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   }, []);
 
   // Listen for OAuth tokens from the popup window via postMessage.
-  // Only accept messages from the backend origin to prevent token injection attacks.
+  // Validates both the sender origin and a one-time nonce to prevent
+  // spoofed or intercepted postMessages from injecting tokens.
   useEffect(() => {
     const backendOrigin = new URL(
       import.meta.env.VITE_API_URL || "http://localhost:8000/api"
@@ -65,6 +66,15 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         return;
       }
       if (event.data?.type === "sheetmind-oauth" && event.data.access_token) {
+        // Verify the nonce matches what we generated for this login attempt.
+        // This ensures the message came from our own OAuth flow, not a spoofed one.
+        const storedNonce = sessionStorage.getItem("oauth_nonce");
+        if (storedNonce && event.data.nonce !== storedNonce) {
+          console.warn("SheetMind: OAuth nonce mismatch — rejecting postMessage");
+          return;
+        }
+        sessionStorage.removeItem("oauth_nonce");
+
         authApi.setTokens(event.data.access_token, event.data.refresh_token || "");
         // Exchange tokens via callback to get user info (avatar, name, etc.)
         authApi.callback(event.data.access_token, event.data.refresh_token || "")
@@ -89,7 +99,12 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     trackLoginGoogleClicked();
 
     try {
-      const { url } = await authApi.getLoginUrl();
+      // Generate a one-time nonce for this login attempt.
+      // Stored in sessionStorage and verified when the postMessage arrives.
+      const nonce = crypto.randomUUID();
+      sessionStorage.setItem("oauth_nonce", nonce);
+
+      const { url } = await authApi.getLoginUrl(nonce);
       // Open as a centered popup — tokens come back via postMessage
       const w = 500, h = 600;
       const left = Math.round((screen.width - w) / 2);

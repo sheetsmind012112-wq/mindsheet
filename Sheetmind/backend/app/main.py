@@ -62,11 +62,18 @@ async def lifespan(app: FastAPI):
         pass
 
 
+_is_prod = settings.APP_ENV == "production"
+
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI-powered Google Sheets & Excel add-on with confidence scores and source linking",
     version="0.1.0",
     lifespan=lifespan,
+    # Disable interactive API docs in production — they expose all endpoints
+    # and request schemas publicly. Enable locally via APP_ENV=development.
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
 )
 
 app.add_middleware(

@@ -533,7 +533,7 @@ async def chat_query(
 
     # ===== LOGGING: Request received (basic info, intent logged after history built) =====
     logger.info("=" * 60)
-    logger.info(f"📩 NEW REQUEST: {request.message[:100]}")
+    logger.info(f"📩 NEW REQUEST: len={len(request.message)}chars, mode={request.mode or 'default'}")
     logger.info(f"   Sheet: {request.sheet_name or 'None'}, Cells: {len(request.sheet_data.get('cells', {})) if request.sheet_data else 0}")
     logger.info(f"   Has history: {len(request.history) if request.history else 0} messages, Mode: {request.mode or 'default'}")
 

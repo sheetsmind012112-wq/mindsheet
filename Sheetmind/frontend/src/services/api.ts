@@ -229,9 +229,12 @@ export const authApi = {
    * Get Google OAuth login URL.
    * Redirect user to this URL to start login flow.
    */
-  async getLoginUrl(): Promise<LoginResponse> {
+  async getLoginUrl(nonce?: string): Promise<LoginResponse> {
     // No auth needed — use plain fetch to avoid 401 retry loop with stale tokens
-    const res = await fetch(`${BASE_URL}/auth/login`);
+    const url = nonce
+      ? `${BASE_URL}/auth/login?nonce=${encodeURIComponent(nonce)}`
+      : `${BASE_URL}/auth/login`;
+    const res = await fetch(url);
     if (!res.ok) throw new ApiError(res.status, await res.text());
     return res.json();
   },
@@ -369,6 +372,27 @@ export const ragApi = {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+};
+
+// Billing API
+export const billingApi = {
+  /**
+   * Create a Dodo Payments checkout session.
+   * Returns a checkout_url to redirect the user to.
+   */
+  async createCheckout(plan: "pro_monthly" | "pro_annual" | "team_monthly" | "team_annual"): Promise<{ checkout_url: string }> {
+    return request<{ checkout_url: string }>("/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({ plan }),
+    });
+  },
+
+  /**
+   * Create a customer portal session for managing subscriptions.
+   */
+  async getPortalUrl(): Promise<{ portal_url: string }> {
+    return request<{ portal_url: string }>("/billing/portal", { method: "POST" });
   },
 };
 

@@ -1,6 +1,6 @@
-import os
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from typing import List
 
@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     # PII Detection — warn users when sensitive data is sent to LLM APIs
     PII_DETECTION_ENABLED: bool = True
 
+    # Internal health check key — required to get detailed /health/db info in production
+    HEALTH_CHECK_KEY: str = ""
+
     # API Analytics (free dashboard at apianalytics.dev)
     API_ANALYTICS_KEY: str = ""
 
@@ -69,15 +72,50 @@ class Settings(BaseSettings):
     DODO_TEAM_MONTHLY_PRODUCT_ID: str = ""
     DODO_TEAM_ANNUAL_PRODUCT_ID: str = ""
 
-    # CORS
+    # CORS — comma-separated list of allowed origins.
+    # localhost entries are automatically stripped in production.
     CORS_ORIGINS: str = "http://localhost:3000,https://docs.google.com"
 
-    # Frontend redirect after login
+    # Frontend redirect after login/billing
     FRONTEND_URL: str = "http://localhost:3000"
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+        origins = [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+        if self.APP_ENV == "production":
+            # Never allow localhost in production — strip it even if accidentally set
+            origins = [o for o in origins if "localhost" not in o and "127.0.0.1" not in o]
+        return origins
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        """Crash at startup if required secrets are missing in production.
+
+        Catches misconfigured deployments immediately rather than failing
+        with cryptic errors on the first real request.
+        """
+        if self.APP_ENV != "production":
+            return self
+
+        missing = []
+        if not self.SUPABASE_URL:
+            missing.append("SUPABASE_URL")
+        if not self.SUPABASE_SERVICE_ROLE_KEY:
+            missing.append("SUPABASE_SERVICE_ROLE_KEY")
+        if not self.OPENROUTER_API_KEY:
+            missing.append("OPENROUTER_API_KEY")
+        if not self.FRONTEND_URL or "localhost" in self.FRONTEND_URL:
+            missing.append("FRONTEND_URL (must not be localhost in production)")
+        if self.DODO_PAYMENTS_API_KEY and self.DODO_PAYMENTS_ENVIRONMENT != "live":
+            missing.append("DODO_PAYMENTS_ENVIRONMENT (must be 'live' in production when API key is set)")
+
+        if missing:
+            raise ValueError(
+                f"Missing or invalid required environment variables for production:\n"
+                + "\n".join(f"  - {v}" for v in missing)
+            )
+
+        return self
 
     model_config = {"env_file": _env_file, "extra": "ignore"}
 

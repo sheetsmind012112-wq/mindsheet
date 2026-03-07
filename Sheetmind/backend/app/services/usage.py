@@ -20,6 +20,18 @@ logger = logging.getLogger(__name__)
 # Free users get N LIFETIME trial messages (configurable)
 FREE_TRIAL_LIMIT = settings.FREE_TRIAL_LIMIT
 
+_VALID_USAGE_TYPES = frozenset({"chat_count", "formula_count", "query_count"})
+
+
+def _validate_usage_type(usage_type: str) -> None:
+    """Raise ValueError if usage_type is not an allowed column name.
+
+    Called before any function that passes usage_type to a database RPC or
+    uses it as a column key, to prevent SQL injection via dynamic column names.
+    """
+    if usage_type not in _VALID_USAGE_TYPES:
+        raise ValueError(f"Invalid usage_type: {usage_type!r}. Must be one of {sorted(_VALID_USAGE_TYPES)}")
+
 # Monthly limits for paid tiers
 TIER_LIMITS = {
     "free": FREE_TRIAL_LIMIT,  # Lifetime limit for free
@@ -191,8 +203,7 @@ def increment_usage(user_id: str, usage_type: str) -> None:
         user_id: The user's UUID string.
         usage_type: One of "chat_count", "formula_count", "query_count".
     """
-    if usage_type not in ("chat_count", "formula_count", "query_count"):
-        raise ValueError(f"Invalid usage_type: {usage_type}")
+    _validate_usage_type(usage_type)
 
     sb = get_supabase()
     period = _get_current_period()
@@ -243,6 +254,7 @@ def _atomic_increment(sb, user_id: str, period: str, usage_type: str) -> None:
     Increment a usage column atomically using a Supabase RPC function.
     Falls back to _fallback_increment if RPC is not available.
     """
+    _validate_usage_type(usage_type)
     try:
         sb.rpc("increment_usage_counter", {
             "p_user_id": user_id,
@@ -259,6 +271,7 @@ def _fallback_increment(sb, user_id: str, period: str, usage_type: str) -> None:
     Fallback increment using select-then-update.
     Not fully atomic but works without the RPC function.
     """
+    _validate_usage_type(usage_type)
     result = sb.table("usage_records") \
         .select("id", usage_type) \
         .eq("user_id", user_id) \
@@ -297,6 +310,7 @@ def check_and_increment(user_id: str, tier: str, usage_type: str) -> None:
 
     Raises HTTPException(402) if limit exceeded.
     """
+    _validate_usage_type(usage_type)
     sb = get_supabase()
     period = _get_current_period()
     limit = TIER_LIMITS.get(tier, 1000)

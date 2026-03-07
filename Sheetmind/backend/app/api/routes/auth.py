@@ -68,12 +68,15 @@ class SignInRequest(BaseModel):
 
 
 @router.get("/login")
-async def login(request: Request):
+async def login(request: Request, nonce: str = ""):
     """
     Return the Supabase OAuth URL for Google login.
     Uses implicit flow (no PKCE) so tokens come back in the URL hash fragment.
     Redirects to our own /oauth-complete page which relays tokens
     back to the opener window via postMessage.
+
+    An optional `nonce` query parameter is passed through the OAuth `state`
+    so the receiver can verify the postMessage came from its own flow.
     """
     from urllib.parse import urlencode
 
@@ -81,14 +84,20 @@ async def login(request: Request):
     base = str(request.base_url).rstrip("/")
     redirect_url = f"{base}{settings.API_PREFIX}/auth/oauth-complete"
 
-    # Construct OAuth URL manually — avoids SDK's PKCE flow which returns
-    # a ?code= param that requires a code_verifier to exchange.
-    # Without code_challenge, Supabase uses implicit flow → #access_token in hash.
-    url = f"{settings.SUPABASE_URL}/auth/v1/authorize?" + urlencode({
+    params: dict = {
         "provider": "google",
         "redirect_to": redirect_url,
         "prompt": "select_account",
-    })
+    }
+    # Embed the nonce in state so oauth-complete can echo it back via postMessage.
+    # Supabase preserves the `state` param through the OAuth redirect.
+    if nonce:
+        params["state"] = nonce
+
+    # Construct OAuth URL manually — avoids SDK's PKCE flow which returns
+    # a ?code= param that requires a code_verifier to exchange.
+    # Without code_challenge, Supabase uses implicit flow → #access_token in hash.
+    url = f"{settings.SUPABASE_URL}/auth/v1/authorize?" + urlencode(params)
 
     return {"url": url}
 
@@ -101,7 +110,8 @@ async def oauth_complete():
     back to the opener window (GAS sidebar) via postMessage,
     then closes itself.
     """
-    return HTMLResponse(content=f"""<!DOCTYPE html>
+    return HTMLResponse(
+      content=f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -135,19 +145,24 @@ async def oauth_complete():
   var params = new URLSearchParams(hash);
   var accessToken = params.get("access_token");
   var refreshToken = params.get("refresh_token");
+  // Supabase echoes the `state` param back in the hash fragment.
+  // We embedded the caller's nonce there so we can return it for verification.
+  var nonce = params.get("state") || "";
   var el = function(id){{ return document.getElementById(id); }};
 
   if (accessToken && window.opener) {{
     // Send tokens back to the opener via postMessage.
-    // Use "*" as targetOrigin because the GAS sidebar runs on a dynamic
-    // sandbox origin (n-<hash>-script.googleusercontent.com) that changes
-    // per session and cannot be predicted. Security is enforced on the
-    // receiver side which validates event.origin before accepting tokens.
+    // targetOrigin is "*" because the GAS sidebar runs on a dynamic
+    // sandbox origin (n-<hash>-script.googleusercontent.com) that cannot
+    // be predicted at serve time. The nonce mitigates this: the receiver
+    // verifies that the nonce in the message matches the one it generated
+    // and stored in sessionStorage before accepting the tokens.
     try {{
       window.opener.postMessage({{
         type: "sheetmind-oauth",
         access_token: accessToken,
         refresh_token: refreshToken || "",
+        nonce: nonce,
         origin: window.location.origin
       }}, "*");
     }} catch(e) {{
@@ -174,7 +189,17 @@ async def oauth_complete():
 }})();
 </script>
 </body>
-</html>""")
+</html>""",
+      headers={
+          # Restrict what this page can load — inline scripts/styles only (needed for the
+          # spinner and token relay logic), nothing from external origins.
+          "Content-Security-Policy": (
+              "default-src 'none'; "
+              "script-src 'unsafe-inline'; "
+              "style-src 'unsafe-inline'"
+          ),
+      },
+    )
 
 
 @router.post("/signup")
@@ -209,8 +234,9 @@ async def signup(body: SignUpRequest, request: Request):
                 "name": body.name or body.email.split("@")[0],
                 "tier": "free",
             }).execute()
-        except Exception:
-            pass  # User might already exist
+        except Exception as insert_err:
+            # Log non-fatal insert errors — user exists in Auth but not in users table
+            logger.warning(f"users table insert after signup failed (user may already exist): {insert_err}")
 
         return {
             "message": "Account created. Please check your email to verify.",
@@ -361,8 +387,11 @@ async def get_me(user: dict = Depends(get_current_user)):
 
 @router.post("/logout")
 async def logout(user: dict = Depends(get_current_user)):
-    """Sign out the current user (invalidates token on Supabase side)."""
-    # Token invalidation happens client-side by discarding the token.
-    # Supabase tokens are stateless JWTs, so server-side logout
-    # is handled by the client clearing stored tokens.
-    return {"status": "logged_out", "message": "Clear tokens on client side."}
+    """Sign out the current user — invalidates the refresh token on Supabase side."""
+    try:
+        client = get_supabase_anon()
+        client.auth.sign_out()
+    except Exception as e:
+        # Don't block logout if Supabase call fails — client will still clear tokens
+        logger.warning(f"Supabase sign_out failed (non-blocking): {e}")
+    return {"status": "logged_out"}
