@@ -136,17 +136,17 @@ async def login(request: Request, nonce: str = ""):
     # Fall back to a server-generated one if not provided.
     used_nonce = nonce or secrets.token_hex(16)
 
-    # Note: We do NOT pass code_challenge to Supabase here.
-    # Passing code_challenge causes Supabase to store its own internal OAuth state
-    # in the browser (localStorage/cookies). In a popup opened from a GAS sandbox
-    # iframe, this storage is inaccessible on the callback, causing bad_oauth_state.
-    # Instead we use the implicit flow — tokens come back in the hash fragment.
+    # IMPORTANT: Do NOT pass a custom `state` to Supabase.
+    # Supabase generates its own state for CSRF and stores it server-side.
+    # Overriding `state` with our nonce breaks Supabase's check → bad_oauth_state.
+    # Instead, encode our nonce in the redirect_to URL so oauth-complete can
+    # extract it without interfering with Supabase's state mechanism.
+    redirect_url_with_nonce = f"{redirect_url}?nonce={used_nonce}"
+
     params: dict = {
         "provider": "google",
-        "redirect_to": redirect_url,
+        "redirect_to": redirect_url_with_nonce,
         "prompt": "select_account",
-        # state is echoed back by Supabase — used to verify the postMessage
-        "state": used_nonce,
     }
 
     url = f"{settings.SUPABASE_URL}/auth/v1/authorize?" + urlencode(params)
@@ -214,8 +214,9 @@ async def oauth_complete():
   var accessToken = hashParams.get("access_token");
   var refreshToken = hashParams.get("refresh_token") || "";
 
-  // State (nonce) may come in hash (implicit) or query string (PKCE)
-  var nonce = hashParams.get("state") || queryParams.get("state") || "";
+  // Nonce is embedded in the redirect_to URL as ?nonce=... (not in state,
+  // to avoid conflicting with Supabase's own CSRF state parameter).
+  var nonce = queryParams.get("nonce") || hashParams.get("state") || queryParams.get("state") || "";
 
   function showSuccess(msg) {
     el("spinner").style.display = "none";
