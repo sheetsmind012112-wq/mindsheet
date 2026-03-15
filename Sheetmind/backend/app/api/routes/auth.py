@@ -136,18 +136,16 @@ async def login(request: Request, nonce: str = ""):
     # Fall back to a server-generated one if not provided.
     used_nonce = nonce or secrets.token_hex(16)
 
-    # Generate PKCE pair and store verifier so /auth/callback can exchange the code.
-    verifier, challenge = _generate_pkce_pair()
-    _store_pkce_verifier(used_nonce, verifier)
-
+    # Note: We do NOT pass code_challenge to Supabase here.
+    # Passing code_challenge causes Supabase to store its own internal OAuth state
+    # in the browser (localStorage/cookies). In a popup opened from a GAS sandbox
+    # iframe, this storage is inaccessible on the callback, causing bad_oauth_state.
+    # Instead we use the implicit flow — tokens come back in the hash fragment.
     params: dict = {
         "provider": "google",
         "redirect_to": redirect_url,
         "prompt": "select_account",
-        "code_challenge": challenge,
-        "code_challenge_method": "S256",
-        # state echoed back by Supabase — used to verify the postMessage
-        # and look up the stored code_verifier.
+        # state is echoed back by Supabase — used to verify the postMessage
         "state": used_nonce,
     }
 
