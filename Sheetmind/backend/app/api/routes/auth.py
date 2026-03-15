@@ -18,11 +18,35 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # PKCE verifier store — maps nonce → (code_verifier, expiry_ts)
-# Keyed by the nonce the frontend generates for each login attempt.
-# Entries are cleaned up on each write and when popped.
 # ---------------------------------------------------------------------------
 _pkce_store: dict[str, tuple[str, float]] = {}
 _pkce_lock = Lock()
+
+# ---------------------------------------------------------------------------
+# Token poll store — maps nonce → (token_data, expiry_ts)
+# oauth-complete exchanges the code server-side and stores tokens here.
+# The GAS sidebar polls /auth/poll/{nonce} to pick them up.
+# Solves the window.opener=null problem in GAS sandbox popups.
+# ---------------------------------------------------------------------------
+_token_store: dict[str, tuple[dict, float]] = {}
+_token_lock = Lock()
+
+
+def _store_token(nonce: str, token_data: dict, ttl_secs: int = 300) -> None:
+    with _token_lock:
+        now = time.time()
+        expired = [k for k, (_, exp) in list(_token_store.items()) if exp < now]
+        for k in expired:
+            del _token_store[k]
+        _token_store[nonce] = (token_data, now + ttl_secs)
+
+
+def _pop_token(nonce: str) -> dict | None:
+    with _token_lock:
+        entry = _token_store.pop(nonce, None)
+        if entry and entry[1] >= time.time():
+            return entry[0]
+        return None
 
 
 def _store_pkce_verifier(nonce: str, verifier: str, ttl_secs: int = 300) -> None:
@@ -257,15 +281,34 @@ async def oauth_complete():
     showError(desc);
 
   } else if (code) {
-    // PKCE flow — send the authorization code to the opener for exchange
-    var sent = sendToOpener({ type: "sheetmind-oauth", code: code, nonce: nonce });
-    if (sent) {
-      showSuccess("This window will close automatically.");
-      setTimeout(function() { window.close(); }, 1500);
-    } else {
-      // No opener (popup was blocked, opened as tab)
-      showSuccess("You can close this window and return to SheetMind.");
-    }
+    // Exchange code server-side so tokens are stored for polling.
+    // This works even when window.opener is null (GAS sandbox popup).
+    fetch("/api/auth/callback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: code, nonce: nonce, access_token: "", refresh_token: "" })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.access_token) {
+        showSuccess("You can close this window — login complete.");
+        // Also try postMessage for browsers where opener works
+        sendToOpener({ type: "sheetmind-oauth", code: code, nonce: nonce });
+        setTimeout(function() { window.close(); }, 2000);
+      } else {
+        showError("Login failed. Please try again.");
+      }
+    })
+    .catch(function() {
+      // Fallback: try postMessage directly
+      var sent = sendToOpener({ type: "sheetmind-oauth", code: code, nonce: nonce });
+      if (sent) {
+        showSuccess("This window will close automatically.");
+        setTimeout(function() { window.close(); }, 1500);
+      } else {
+        showError("Login failed. Please close and try again.");
+      }
+    });
 
   } else if (accessToken) {
     // Implicit flow fallback — send tokens directly
@@ -471,18 +514,39 @@ async def callback(body: TokenRequest, request: Request):
                 "tier": "free",
             }).execute().data[0]
 
-        return {
+        token_data = {
             "user": user_record,
             "access_token": session_obj.access_token,
             "refresh_token": session_obj.refresh_token,
             "expires_at": session_obj.expires_at,
         }
 
+        # Store tokens for sidebar polling (window.opener may be null in GAS)
+        if body.nonce:
+            _store_token(body.nonce, token_data)
+
+        return token_data
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"OAuth callback error: {e}")
         raise HTTPException(status_code=401, detail="Authentication failed. Please try again.")
+
+
+@router.get("/poll/{nonce}")
+async def poll_token(nonce: str, request: Request):
+    """
+    Sidebar polls this endpoint after opening the OAuth popup.
+    Returns tokens once oauth-complete has exchanged the code server-side.
+    Returns 204 (no content) if tokens aren't ready yet.
+    """
+    _check_auth_rate_limit(request, "poll")
+    token_data = _pop_token(nonce)
+    if not token_data:
+        from fastapi.responses import Response
+        return Response(status_code=204)
+    return token_data
 
 
 @router.post("/refresh")

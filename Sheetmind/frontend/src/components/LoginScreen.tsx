@@ -42,6 +42,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [popupOpened, setPopupOpened] = useState(false);
+  const [pollNonce, setPollNonce] = useState<string | null>(null);
 
   // Form fields
   const [email, setEmail] = useState("");
@@ -52,6 +53,31 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   useEffect(() => {
     trackLoginPageViewed();
   }, []);
+
+  // Poll backend for tokens after popup opens (window.opener is null in GAS sandbox)
+  useEffect(() => {
+    if (!pollNonce) return;
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/auth/poll/${pollNonce}`);
+        if (res.status === 204) return; // not ready yet
+        if (res.ok) {
+          const data = await res.json();
+          if (data.access_token) {
+            clearInterval(interval);
+            setPollNonce(null);
+            authApi.setTokens(data.access_token, data.refresh_token || "");
+            trackLoginSuccess("google");
+            onLoginSuccess(data.user);
+          }
+        }
+      } catch { /* network error — keep polling */ }
+    }, 2000);
+    // Stop polling after 5 minutes
+    const timeout = setTimeout(() => clearInterval(interval), 300_000);
+    return () => { clearInterval(interval); clearTimeout(timeout); };
+  }, [pollNonce, onLoginSuccess]);
 
   // Listen for OAuth result from the popup window via postMessage.
   // Validates both the sender origin and a one-time nonce to prevent
@@ -132,13 +158,11 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
       );
       if (!popup) {
-        // Popup blocked — fall back to new tab
         window.open(url, "_blank");
         setError("Complete login in the popup, then come back here.");
       } else {
-        // Popup opened — show manual "I've logged in" button in case
-        // window.opener is null in the GAS sandbox (postMessage won't arrive)
         setPopupOpened(true);
+        setPollNonce(nonce);
       }
       setIsLoading(false);
     } catch (err) {
